@@ -62,3 +62,5 @@ npm start
 ```
 
 Artgine 앱에서 `projectPath`를 `proj/Home`으로 설정하고 **Run**을 클릭하세요.
+
+> **웹 서버만 실행** — `npm run start_web [포트]` (기본값: 8050)

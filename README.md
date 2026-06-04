@@ -62,3 +62,5 @@ npm start
 ```
 
 Set `projectPath` to `proj/Home` in the Artgine app, then click **Run**.
+
+> **Web-only mode** — `npm run start_web [port]` (default: 8050)
