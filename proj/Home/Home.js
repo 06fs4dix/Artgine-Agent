@@ -1,8 +1,5 @@
-﻿import "https://06fs4dix.github.io/Artgine/artgine/artgine.js";
-import { CClass } from "https://06fs4dix.github.io/Artgine/artgine/basic/CClass.js";
-import { MountDownloadTab } from "./Downloads/DownloadTab.js";
-CClass.Push(MountDownloadTab);
-import { CPreferences } from "https://06fs4dix.github.io/Artgine/artgine/basic/CPreferences.js";
+import "../../Artgine/artgine/artgine.js";
+import { CPreferences } from "../../Artgine/artgine/basic/CPreferences.js";
 var gPF = new CPreferences();
 gPF.mTargetWidth = 0;
 gPF.mTargetHeight = 0;
@@ -18,59 +15,27 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mptgpf92_2";
-import { CAtelier } from "https://06fs4dix.github.io/Artgine/artgine/app/CAtelier.js";
+gPF.mVersion = "mq07xrir_5";
+import { CAtelier } from "../../Artgine/artgine/app/CAtelier.js";
 var gAtl = new CAtelier();
 gAtl.mPF = gPF;
 await gAtl.Init([], "");
-import { CSing, CSingOption } from "https://06fs4dix.github.io/Artgine/artgine/server/CSing.js";
-import { CConfirm, CModal } from "https://06fs4dix.github.io/Artgine/artgine/basic/CModal.js";
-import { CUtil } from "https://06fs4dix.github.io/Artgine/artgine/basic/CUtil.js";
-import { CBoard } from "https://06fs4dix.github.io/Artgine/artgine/server/CBoard.js";
-import { CUtilWeb } from "https://06fs4dix.github.io/Artgine/artgine/util/CUtilWeb.js";
-import { CStorage } from "https://06fs4dix.github.io/Artgine/artgine/system/CStorage.js";
-import { CAlert } from "https://06fs4dix.github.io/Artgine/artgine/basic/CAlert.js";
-import { CDOM } from "https://06fs4dix.github.io/Artgine/artgine/basic/CDOM.js";
-import { CFecth } from "https://06fs4dix.github.io/Artgine/artgine/network/CFecth.js";
-import { CPath } from "https://06fs4dix.github.io/Artgine/artgine/basic/CPath.js";
-import { CFileViewer, CMDViewer, CSheetViewer, CModalStackMsg } from "https://06fs4dix.github.io/Artgine/artgine/util/CModalUtil.js";
-import { CFile } from "https://06fs4dix.github.io/Artgine/artgine/system/CFile.js";
-import { CPWA } from 'https://06fs4dix.github.io/Artgine/artgine/system/CPWA.js';
-import { Bootstrap } from "https://06fs4dix.github.io/Artgine/artgine/basic/Bootstrap.js";
+import { CConfirm, CModal } from "../../Artgine/artgine/basic/CModal.js";
+import { CUtil } from "../../Artgine/artgine/basic/CUtil.js";
+import { CUtilWeb } from "../../Artgine/artgine/util/CUtilWeb.js";
+import { CStorage } from "../../Artgine/artgine/system/CStorage.js";
+import { CAlert } from "../../Artgine/artgine/basic/CAlert.js";
+import { CDOM } from "../../Artgine/artgine/basic/CDOM.js";
+import { CFecth } from "../../Artgine/artgine/network/CFecth.js";
+import { CPath } from "../../Artgine/artgine/basic/CPath.js";
+import { CFileViewer, CMDViewer, CSheetViewer, CModalStackMsg } from "../../Artgine/artgine/util/CModalUtil.js";
+import { CFile } from "../../Artgine/artgine/system/CFile.js";
+import { CPWA } from '../../Artgine/artgine/system/CPWA.js';
+import { Bootstrap } from "../../Artgine/artgine/basic/Bootstrap.js";
+import { CTooltip } from "../../Artgine/artgine/util/CTooltip.js";
 if (gPF.mServer != "webServer")
     CAlert.E("서버 세팅이 잘못되었습니다");
 CUtilWeb.Parameter("");
-let option = new CSingOption();
-option.mFindPWBtn = "pass";
-CSing.On(CSing.eEvent.State, () => {
-    if (CSing.PrivateKey() == null)
-        CDOM.ID("login-btn").innerText = "Login";
-    else
-        CDOM.ID("login-btn").innerText = "Logout";
-});
-CSing.On(CSing.eEvent.Init, () => {
-    if (CSing.PrivateKey() == null)
-        CDOM.ID("login-btn").innerText = "Login";
-    else
-        CDOM.ID("login-btn").innerText = "Logout";
-});
-CSing.On(CSing.eEvent.JoinInit, () => {
-    loginModal.SetPosition(CModal.ePos.Center);
-});
-CSing.On(CSing.eEvent.Insert, () => {
-    loginModal.Open();
-    CSing.ModifyMode();
-});
-let html = await CSing.InitForm(option);
-let loginModal = new CModal();
-loginModal.SetHeader("Sing");
-loginModal.SetBody(html);
-loginModal.SetTitle(CModal.eTitle.TextClose);
-loginModal.SetCloseToHide(true);
-loginModal.SetSize(320, 640);
-CDOM.ID("login-btn").addEventListener("click", () => {
-    loginModal.Open();
-});
 if (!CPWA.IsInstalled()) {
     CDOM.ID("install-btn").style.display = "";
 }
@@ -79,24 +44,6 @@ CDOM.ID("install-btn").addEventListener("click", () => {
     if (msg)
         CAlert.Info(msg);
 });
-let bClient = null;
-CDOM.ID("board-tab").onclick = () => {
-    if (bClient == null) {
-        bClient = new CBoard(CDOM.ID("board"), "");
-        bClient.List(0, 5);
-    }
-};
-let dlInited = false;
-CDOM.ID("download-tab").addEventListener("shown.bs.tab", () => {
-    if (dlInited)
-        return;
-    dlInited = true;
-    MountDownloadTab("download-root");
-});
-if (CDOM.ID("download-panel").classList.contains("active")) {
-    dlInited = true;
-    MountDownloadTab("download-root");
-}
 const AI_TOKEN_KEY = 'artgine.token';
 {
     const _origFetch = window.fetch.bind(window);
@@ -271,7 +218,7 @@ async function aiRefreshSessions() {
         return;
     }
     try {
-        const r = await aiAuthedFetch(CPath.PHPC() + 'ai/chat/sessions?limit=30');
+        const r = await aiAuthedFetch(CPath.WebRootUrl() + 'ai/chat/sessions?limit=30');
         if (r.status === 401) {
             localStorage.removeItem(AI_TOKEN_KEY);
             fileAuthed = false;
@@ -356,7 +303,7 @@ async function aiRefreshSessions() {
                         if (b.dataset.act === 'delete') {
                             if (!confirm(`Delete "${s.title}"?`))
                                 return;
-                            await aiAuthedFetch(`${CPath.PHPC()}ai/chat/session?id=${s.sessionId}`, { method: 'DELETE' });
+                            await aiAuthedFetch(`${CPath.WebRootUrl()}ai/chat/session?id=${s.sessionId}`, { method: 'DELETE' });
                             destroyFrame(key);
                             aiRefreshSessions();
                             termRefreshSessions();
@@ -377,6 +324,10 @@ async function aiRefreshSessions() {
             item.addEventListener('mouseenter', () => { if (!isActive)
                 item.classList.add('bg-body-secondary'); });
             item.addEventListener('mouseleave', () => item.classList.remove('bg-body-secondary'));
+            const aiTipEl = document.createElement('div');
+            aiTipEl.style.cssText = 'white-space:pre-wrap;max-width:280px;font-size:0.82rem;';
+            aiTipEl.textContent = s.title + (s.lastMsg ? '\n\n' + s.lastMsg : '');
+            new CTooltip(aiTipEl, item, CTooltip.eTrigger.Hover, CTooltip.ePlacement.Left);
             aiSessionList.appendChild(item);
         }
     }
@@ -455,6 +406,8 @@ const CMD_TOKEN_KEY = 'artgine.token';
 const termNewBtn = CDOM.ID("termNewBtn");
 const termSessionList = CDOM.ID("termSessionList");
 let termActivePort = null;
+const prevTermUpdatedAt = new Map();
+const termPendingNotify = new Set();
 function termAuthedFetch(url, init) {
     const token = localStorage.getItem(CMD_TOKEN_KEY) || '';
     const headers = new Headers(init?.headers || {});
@@ -466,7 +419,7 @@ async function termStartNew(_mode = 'cmd', initialWorkingDir) {
     const token = localStorage.getItem(CMD_TOKEN_KEY);
     if (token) {
         try {
-            const r = await termAuthedFetch(CPath.PHPC() + 'cmd/sessions');
+            const r = await termAuthedFetch(CPath.WebRootUrl() + 'cmd/sessions');
             const j = await r.json();
             if (j.ok) {
                 const aliveCount = j.sessions.filter((s) => s.alive).length;
@@ -558,14 +511,14 @@ async function termStartNew(_mode = 'cmd', initialWorkingDir) {
                 params.set('mdcopy', '1');
             modal.Close();
             try {
-                const r = await termAuthedFetch(CPath.PHPC() + 'cmd/start-ttyd?' + params.toString());
+                const r = await termAuthedFetch(CPath.WebRootUrl() + 'cmd/start-ttyd?' + params.toString());
                 const j = await r.json();
                 if (!j.ok) {
                     alert(j.msg || 'Failed to start terminal');
                     return;
                 }
                 const key = `term-new:${Date.now()}`;
-                showFrame(key, `${CPath.PHPC()}cmd/terminal-proxy?port=${j.port}`);
+                showFrame(key, `${CPath.WebRootUrl()}cmd/terminal-proxy?port=${j.port}`);
                 aiRefreshSessions();
                 termRefreshSessions();
                 refreshSessionsSoon();
@@ -589,13 +542,13 @@ async function termConnectSession(port) {
         termRefreshSessions();
         return;
     }
-    showFrame(key, `${CPath.PHPC()}cmd/terminal-proxy?port=${port}`);
+    showFrame(key, `${CPath.WebRootUrl()}cmd/terminal-proxy?port=${port}`);
     aiRefreshSessions();
     termRefreshSessions();
 }
 async function termKillSession(port) {
     try {
-        const r = await termAuthedFetch(`${CPath.PHPC()}cmd/kill-session?port=${port}`);
+        const r = await termAuthedFetch(`${CPath.WebRootUrl()}cmd/kill-session?port=${port}`);
         const j = await r.json();
         if (!j.ok) {
             alert(`삭제 실패: ${j.msg || 'unknown error'}`);
@@ -610,7 +563,7 @@ async function termKillSession(port) {
 }
 async function termRefreshSessions() {
     try {
-        const r = await fetch(CPath.PHPC() + 'cmd/sessions');
+        const r = await fetch(CPath.WebRootUrl() + 'cmd/sessions');
         const j = await r.json();
         if (!j.ok)
             return;
@@ -650,21 +603,34 @@ async function termRefreshSessions() {
             item.className = 'ai-session-item d-flex align-items-center gap-2 px-2 py-2 rounded'
                 + (isActive ? ' bg-success-subtle' : '');
             item.dataset.port = String(s.port);
-            const rel = aiFormatRelative(s.lastActivity);
-            const preview = aiEscapeHtml(s.lastCmd || s.lastLine || '(empty)');
+            const rel = aiFormatRelative(s.updatedAt);
+            const preview = aiEscapeHtml(s.lastMsg || '(empty)');
             const dotLabel = s.mode.slice(0, 3);
             const dotTitle = s.key || s.mode;
             let dot;
             if (!s.alive || !isLoaded) {
+                termPendingNotify.delete(s.port);
                 dot = `<span class="badge rounded-pill bg-danger" title="${aiEscapeHtml(dotTitle)}">${dotLabel}</span>`;
             }
-            else if (s.lineChanged) {
+            else if (s.busy) {
+                termPendingNotify.delete(s.port);
                 dot = `<span class="badge rounded-pill bg-warning term-busy-dot" title="${aiEscapeHtml(dotTitle)}">${dotLabel}</span>`;
             }
             else {
-                if (prevYellowTerm.has(s.port) && (!isActiveFrame(key) || !document.hasFocus())) {
-                    const rawPreview = s.lastCmd || s.lastLine || '';
-                    _showDoneNotification(`${s.key || s.mode}: ${rawPreview}`.trimEnd(), rawPreview ? preview : undefined, () => termConnectSession(s.port));
+                if (prevYellowTerm.has(s.port)) {
+                    termPendingNotify.add(s.port);
+                    prevTermUpdatedAt.set(s.port, s.updatedAt);
+                }
+                else if (termPendingNotify.has(s.port)) {
+                    const rawPreview = s.lastMsg || '';
+                    if (prevTermUpdatedAt.get(s.port) === s.updatedAt && (!isActiveFrame(key) || !document.hasFocus())) {
+                        _showDoneNotification(`${s.key || s.mode}: ${rawPreview}`.trimEnd(), rawPreview ? preview : undefined, () => termConnectSession(s.port));
+                        termPendingNotify.delete(s.port);
+                        prevTermUpdatedAt.delete(s.port);
+                    }
+                    else {
+                        prevTermUpdatedAt.set(s.port, s.updatedAt);
+                    }
                 }
                 dot = `<span class="badge rounded-pill bg-success" title="${aiEscapeHtml(dotTitle)}">${dotLabel}</span>`;
             }
@@ -728,6 +694,10 @@ async function termRefreshSessions() {
             item.addEventListener('mouseenter', () => { if (!isActive)
                 item.classList.add('bg-body-secondary'); });
             item.addEventListener('mouseleave', () => item.classList.remove('bg-body-secondary'));
+            const termTipEl = document.createElement('div');
+            termTipEl.style.cssText = 'white-space:pre-wrap;max-width:280px;font-size:0.82rem;';
+            termTipEl.textContent = s.lastMsg || '(empty)';
+            new CTooltip(termTipEl, item, CTooltip.eTrigger.Hover, CTooltip.ePlacement.Left);
             termSessionList.appendChild(item);
         }
     }
@@ -736,7 +706,7 @@ async function termRefreshSessions() {
     }
 }
 function termShowShareLink(port) {
-    const shareUrl = `${CPath.PHPC()}cmd/terminal-proxy?port=${port}`;
+    const shareUrl = `${CPath.WebRootUrl()}cmd/terminal-proxy?port=${port}`;
     const uid = `ts_${Date.now()}`;
     const modal = new CModal();
     modal.SetHeader('Terminal Share Link');
@@ -755,7 +725,7 @@ function termShowShareLink(port) {
 }
 function aiShowShareLink(sessionId, title) {
     const base = location.pathname.replace(/\/[^/]+$/, '');
-    const shareUrl = `${location.origin}${base}/AI/AIChat.html?share=${encodeURIComponent(sessionId)}`;
+    const shareUrl = `${location.origin}${base}/AI/AIChat.html?session=${encodeURIComponent(sessionId)}`;
     const uid = `as_${Date.now()}`;
     const modal = new CModal();
     modal.SetHeader('AI Chat Share Link');
@@ -774,7 +744,7 @@ function aiShowShareLink(sessionId, title) {
 }
 async function termOpenPopup(port, newWindow = false) {
     if (newWindow) {
-        window.open(`${CPath.PHPC()}cmd/terminal-proxy?port=${port}`, `term_${port}`, 'width=900,height=600,toolbar=no,menubar=no,location=no,status=no');
+        window.open(`${CPath.WebRootUrl()}cmd/terminal-proxy?port=${port}`, `term_${port}`, 'width=900,height=600,toolbar=no,menubar=no,location=no,status=no');
         return;
     }
     try {
@@ -784,7 +754,7 @@ async function termOpenPopup(port, newWindow = false) {
         modal.SetTitle(CModal.eTitle.TextClose);
         modal.SetHeader('Terminal');
         modal.SetBody(`<div style="position:relative;width:100%;height:100%;">` +
-            `<iframe src="${CPath.PHPC()}cmd/terminal-proxy?port=${port}" style="width:100%;height:100%;border:none;display:block;"></iframe>` +
+            `<iframe src="${CPath.WebRootUrl()}cmd/terminal-proxy?port=${port}" style="width:100%;height:100%;border:none;display:block;"></iframe>` +
             `<div class="modal-iframe-guard" style="position:absolute;top:0;left:0;width:100%;height:100%;display:none;z-index:1;"></div>` +
             `</div>`);
         modal.SetSize('80%', '80%');
@@ -814,7 +784,7 @@ function schedIntervalStr(s) {
 }
 async function schedRefresh() {
     try {
-        const r = await termAuthedFetch(CPath.PHPC() + 'cmd/schedules');
+        const r = await termAuthedFetch(CPath.WebRootUrl() + 'cmd/schedules');
         const j = await r.json();
         if (!j.ok)
             return;
@@ -843,7 +813,7 @@ async function schedRefresh() {
                 e.stopPropagation();
                 if (!confirm(`스케줄 '${s.name}' 을 삭제할까요?`))
                     return;
-                await termAuthedFetch(`${CPath.PHPC()}cmd/schedule-del?name=${encodeURIComponent(s.name)}`);
+                await termAuthedFetch(`${CPath.WebRootUrl()}cmd/schedule-del?name=${encodeURIComponent(s.name)}`);
                 schedRefresh();
             });
             item.addEventListener('mouseenter', () => item.classList.add('bg-body-secondary'));
@@ -983,7 +953,7 @@ function schedOpenModal(existing) {
                 allow: allow ? '1' : '0', mcp: mcp ? '1' : '0', mdcopy: mdcopy ? '1' : '0' });
             if (cwd)
                 params.set('cwd', cwd);
-            const r = await termAuthedFetch(`${CPath.PHPC()}cmd/schedule-set?${params.toString()}`);
+            const r = await termAuthedFetch(`${CPath.WebRootUrl()}cmd/schedule-set?${params.toString()}`);
             const j = await r.json();
             if (!j.ok) {
                 alert(j.msg || 'Failed');
@@ -1091,7 +1061,7 @@ async function aiCheckAuth() {
     if (!token)
         return false;
     try {
-        const j = await CFecth.Exe(CPath.PHPC() + "auth/check", { token }, "json");
+        const j = await CFecth.Exe(CPath.WebRootUrl() + "auth/check", { token }, "json");
         return !!j?.ok;
     }
     catch {
@@ -1121,7 +1091,7 @@ async function aiDoAuth() {
     aiAuthSubmitBtn.disabled = true;
     aiAuthMsg.textContent = '';
     try {
-        const j = await CFecth.Exe(CPath.PHPC() + "auth/login", { password: pw }, "json");
+        const j = await CFecth.Exe(CPath.WebRootUrl() + "auth/login", { password: pw }, "json");
         if (j.ok) {
             localStorage.setItem(AI_TOKEN_KEY, j.token);
             fileAuthed = true;
@@ -1453,7 +1423,7 @@ function Redirection(_multi) {
     form.setAttribute("method", "Post");
     const _token = localStorage.getItem(AI_TOKEN_KEY) || '';
     const _tokenQ = _token ? `?token=${encodeURIComponent(_token)}` : '';
-    form.setAttribute("action", CPath.PHPC() + "File/Redirection" + _tokenQ);
+    form.setAttribute("action", CPath.WebRootUrl() + "File/Redirection" + _tokenQ);
     CDOM.IDValue("fun", g_fun);
     CDOM.IDValue("data", g_data);
     CDOM.IDValue("option", g_option);
@@ -1501,7 +1471,7 @@ async function PermissionBtn() {
     dlg.SetConfirm(CConfirm.eConfirm.YesNo, [
         () => {
             const pw = CDOM.IDValue("AuthPassword");
-            CFecth.Exe(CPath.PHPC() + "auth/login", { password: pw }, "json").then((j) => {
+            CFecth.Exe(CPath.WebRootUrl() + "auth/login", { password: pw }, "json").then((j) => {
                 if (j.ok) {
                     localStorage.setItem(AI_TOKEN_KEY, j.token);
                     fileAuthed = true;
@@ -1632,7 +1602,7 @@ function CreateFolder() {
             const param = { data };
             if (RootPath)
                 param.RootPath = RootPath;
-            const j = await CFecth.Exe(CPath.PHPC() + "File/Mkdir", param, "json");
+            const j = await CFecth.Exe(CPath.WebRootUrl() + "File/Mkdir", param, "json");
             if (j?.ok)
                 FolderCD(window["g_path"]);
             else
