@@ -2,7 +2,7 @@
   "width": 1024,
   "height": 768,
   "fullScreen": false,
-  "program": "developer",
+  "program": "server",
   "url": "http://localhost:7000/Artgine-Agent",
   "projectPath": "proj/Home",
   "page": "html",
