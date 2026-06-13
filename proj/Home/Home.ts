@@ -20,7 +20,7 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mq07xrir_5";
+gPF.mVersion = "mqazrwhz_2";
 
 import {CAtelier} from "../../Artgine/artgine/app/CAtelier.js";
 
@@ -40,7 +40,7 @@ import { CAlert } from "../../Artgine/artgine/basic/CAlert.js";
 import { CDOM } from "../../Artgine/artgine/basic/CDOM.js";
 import { CFecth } from "../../Artgine/artgine/network/CFecth.js";
 import { CPath } from "../../Artgine/artgine/basic/CPath.js";
-import { CFileViewer, CMDViewer, CSheetViewer, CModalStackMsg } from "../../Artgine/artgine/util/CModalUtil.js";
+import { CFileViewer, CMDViewer, CSheetViewer, CModalStackMsg, CModalMusic } from "../../Artgine/artgine/util/CModalUtil.js";
 import { CFile } from "../../Artgine/artgine/system/CFile.js";
 import { CWebSocket } from '../../Artgine/artgine/network/CWebSocket.js';
 import { CPWA } from '../../Artgine/artgine/system/CPWA.js';
@@ -71,7 +71,6 @@ CDOM.ID("install-btn").addEventListener("click",()=>{
     if(msg) CAlert.Info(msg);
 });
 
-
 // ---- AI tab: session list ----
 const AI_TOKEN_KEY = 'artgine.token';
 
@@ -101,6 +100,35 @@ let activeFrameKey: string | null = null;
 let pendingNewSid: string | null = null; // 서버에 아직 없는 새 세션 (첫 메시지 전)
 
 let _activeNotifCallback: (() => void) | null = null;
+
+function isAiPanelActive(): boolean {
+    return document.getElementById('ai-panel')?.classList.contains('active') === true;
+}
+
+function isAiAuthVisible(): boolean {
+    const overlay = document.getElementById('ai-auth-overlay');
+    return !!overlay && overlay.style.display !== 'none';
+}
+
+function handleTermSidebarShortcut(e: KeyboardEvent): boolean {
+    if (!isAiPanelActive()) return false;
+    if (isAiAuthVisible()) return false;
+    if (aiSidebarEl.classList.contains('collapsed')) return false;
+    if (e.shiftKey && !e.ctrlKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        e.stopPropagation();
+        termStartNew('cmd');
+        return true;
+    }
+    if (e.shiftKey && !e.ctrlKey && e.key.toLowerCase() === 'd') {
+        if (!activeFrameKey?.startsWith('term:')) return false;
+        e.preventDefault();
+        e.stopPropagation();
+        termConfirmKillSession(parseInt(activeFrameKey.slice(5), 10));
+        return true;
+    }
+    return false;
+}
 
 function _showModalStackMsg(label: string, content?: string, onClick?: () => void) {
     const m = new CModalStackMsg(CModal.ePos.TopRight);
@@ -154,14 +182,19 @@ function showFrame(key: string, src: string): HTMLIFrameElement {
             const isTerm = key.startsWith('term:') || key.startsWith('term-new:');
             try {
                 f!.contentWindow?.addEventListener('keydown', (e) => {
+                    if (isTerm && handleTermSidebarShortcut(e)) return;
                     if (!isTerm && e.key === 'Tab') { e.preventDefault(); handleTabKey(); return; }
-                    if (e.key === 'F2') { e.preventDefault(); FileSearch(); }
-                    else if (e.key === 'F3') {
+                    if (!isTerm && e.key === 'ArrowRight' && _activeNotifCallback) { e.preventDefault(); handleNotifKey(); return; }
+                    if (!isTerm && e.key === 'ArrowLeft' && goPrevFrame()) { e.preventDefault(); return; }
+                    if (!isTerm && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && goNextSession(e.key === 'ArrowUp' ? -1 : 1)) { e.preventDefault(); return; }
+                    if (!isTerm && e.key === 'F1') { e.preventDefault(); FileBtn(); }
+                    else if (!isTerm && e.key === 'F2') { e.preventDefault(); FileSearch(); }
+                    else if (!isTerm && e.key === 'F3') {
                         e.preventDefault();
                         const fileTabEl = document.getElementById('file-tab') as HTMLElement;
                         if (fileTabEl) (window as any).bootstrap.Tab.getOrCreateInstance(fileTabEl).show();
                         FolderCD('/');
-                    } else if (e.key === 'F4') {
+                    } else if (!isTerm && e.key === 'F4') {
                         e.preventDefault();
                         const aiTabEl = document.getElementById('ai-tab') as HTMLElement;
                         if (aiTabEl) (window as any).bootstrap.Tab.getOrCreateInstance(aiTabEl).show();
@@ -187,6 +220,26 @@ function destroyFrame(key: string) {
     f.remove();
     iframePool.delete(key);
     if (activeFrameKey === key) activeFrameKey = null;
+}
+
+function focusActiveFrame() {
+    if (!activeFrameKey) return;
+    const f = iframePool.get(activeFrameKey);
+    if (!f) return;
+    try {
+        f.contentWindow?.focus();
+        const input = f.contentDocument?.querySelector<HTMLElement>('#mi-bar textarea, textarea, input');
+        if (input) {
+            input.focus();
+            return;
+        }
+    } catch (_) {}
+    f.focus();
+}
+
+function focusActiveFrameIfSidebarCollapsed() {
+    if (!aiSidebarEl.classList.contains('collapsed')) return;
+    setTimeout(() => focusActiveFrame(), 0);
 }
 
 function uuidv4(): string {
@@ -248,11 +301,6 @@ async function aiRefreshSessions() {
         }
         const j = await r.json();
         if (!j.ok) return;
-        // DOM 지우기 전에 노란점(처리 중)이었던 세션 수집
-        const prevYellowChat = new Set<string>();
-        aiSessionList.querySelectorAll<HTMLElement>('[data-sid]').forEach(el => {
-            if (el.querySelector('.ai-busy-dot')) prevYellowChat.add(el.dataset.sid!);
-        });
         aiSessionList.innerHTML = '';
         const sessions = j.sessions as { sessionId: string; title: string; updatedAt?: number; busy?: boolean; lastMsg?: string; workingDir?: string }[];
         const serverSids = new Set(sessions.map(s => s.sessionId));
@@ -270,17 +318,14 @@ async function aiRefreshSessions() {
                 + (isActive ? ' bg-primary-subtle' : '');
             item.dataset.sid = s.sessionId;
             const rel = aiFormatRelative(s.updatedAt);
-            let dot: string;
-            if (!isLoaded) {
-                dot = '<span class="text-danger small" title="미연결">●</span>';
-            } else if (s.busy) {
-                dot = '<span class="ai-busy-dot text-warning small" title="처리 중">●</span>';
-            } else {
-                if (prevYellowChat.has(s.sessionId) && (!isActiveFrame(key) || !document.hasFocus())) {
+            const st: SessState = !isLoaded ? 'off' : s.busy ? 'busy' : 'idle';
+            syncSessState(`chat:${s.sessionId}`, st, () => {
+                if (!isActiveFrame(key) || !document.hasFocus())
                     _showDoneNotification(aiEscapeHtml(s.title), s.lastMsg ? aiEscapeHtml(s.lastMsg) : undefined, () => aiLoadSession(s.sessionId));
-                }
-                dot = '<span class="text-warning small" title="대기 중">●</span>';
-            }
+            });
+            const dot = st === 'off'  ? '<span class="text-danger small" title="미연결">●</span>'
+                      : st === 'busy' ? '<span class="ai-busy-dot text-warning small" title="처리 중">●</span>'
+                      :                 '<span class="text-success small" title="대기 중">●</span>';
             item.innerHTML = `
                 <span class="d-flex flex-column align-items-center flex-shrink-0" style="min-width:1.5rem;">
                     ${dot}
@@ -416,8 +461,17 @@ const CMD_TOKEN_KEY = 'artgine.token';
 const termNewBtn = CDOM.ID("termNewBtn");
 const termSessionList = CDOM.ID("termSessionList");
 let termActivePort: number | null = null;
-const prevTermUpdatedAt = new Map<number, number>();
-const termPendingNotify = new Set<number>();
+
+// ---- 세션 상태(빨강 off / 노랑 busy / 초록 idle)를 1곳에서 관리 ----
+// 알림은 노랑/주황→초록(busy·wait→idle) 전환에서만 발화한다. AI 채팅·터미널 공용.
+type SessState = 'off' | 'busy' | 'idle' | 'wait';
+const _sessState = new Map<string, SessState>();
+function syncSessState(id: string, cur: SessState, onDone: () => void, onWait?: () => void): void {
+    const prev = _sessState.get(id);
+    if ((prev === 'busy' || prev === 'wait') && cur === 'idle') onDone();
+    if (prev !== 'wait' && cur === 'wait') onWait?.();
+    _sessState.set(id, cur);
+}
 
 
 
@@ -429,7 +483,7 @@ function termAuthedFetch(url: string, init?: RequestInit): Promise<Response> {
     return fetch(url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token), { ...init, headers });
 }
 
-async function termStartNew(_mode: 'cmd' | 'claude' | 'gemini' | 'codex' | 'antigravity' = 'cmd', initialWorkingDir?: string) {
+async function termStartNew(_mode: 'cmd' | 'claude' /* | 'gemini' */ | 'codex' | 'antigravity' = 'cmd', initialWorkingDir?: string) {
     const token = localStorage.getItem(CMD_TOKEN_KEY);
     if (token) {
         try {
@@ -451,7 +505,7 @@ async function termStartNew(_mode: 'cmd' | 'claude' | 'gemini' | 'codex' | 'anti
         <div class="mb-3 d-flex gap-2 flex-wrap">
             <button class="term-mode-btn btn btn-sm btn-outline-secondary flex-fill" data-mode="cmd">cmd</button>
             <button class="term-mode-btn btn btn-sm btn-outline-secondary flex-fill" data-mode="claude">claude</button>
-            <button class="term-mode-btn btn btn-sm btn-outline-secondary flex-fill" data-mode="gemini">gemini</button>
+            <!-- <button class="term-mode-btn btn btn-sm btn-outline-secondary flex-fill" data-mode="gemini">gemini</button> -->
             <button class="term-mode-btn btn btn-sm btn-outline-secondary flex-fill" data-mode="codex">codex</button>
             <button class="term-mode-btn btn btn-sm btn-outline-secondary flex-fill" data-mode="antigravity">agy</button>
         </div>
@@ -569,18 +623,25 @@ async function termKillSession(port: number) {
     } catch (e) { console.error('termKillSession error:', e); }
 }
 
+function termConfirmKillSession(port: number) {
+    const item = termSessionList.querySelector<HTMLElement>(`[data-port="${port}"]`);
+    const label = item?.querySelector<HTMLElement>('.fw-semibold')?.textContent || `Terminal ${port}`;
+    const confirm = new CConfirm();
+    confirm.SetBody(`Delete ${aiEscapeHtml(label)}?`);
+    confirm.SetConfirm(CConfirm.eConfirm.YesNo, [
+        () => { termKillSession(port); },
+        () => {},
+    ], ["Delete", "Cancel"]);
+    confirm.Open();
+}
+
 async function termRefreshSessions() {
     try {
         const r = await fetch(CPath.WebRootUrl() + 'cmd/sessions');
         const j = await r.json();
         if (!j.ok) return;
-        // DOM 지우기 전에 노란점(처리 중)이었던 포트 수집
-        const prevYellowTerm = new Set<number>();
-        termSessionList.querySelectorAll<HTMLElement>('[data-port]').forEach(el => {
-            if (el.querySelector('.term-busy-dot')) prevYellowTerm.add(Number(el.dataset.port));
-        });
         termSessionList.innerHTML = '';
-        const sessions = j.sessions as { port: number; mode: string; key?: string; lastMsg: string; updatedAt: number; createdAt: number; alive: boolean; busy: boolean; workingDir?: string }[];
+        const sessions = j.sessions as { port: number; mode: string; key?: string; lastMsg: string; updatedAt: number; createdAt: number; alive: boolean; busy: boolean; permPending?: boolean; workingDir?: string }[];
         const serverPorts = new Set(sessions.map(s => s.port));
         for (const key of Array.from(iframePool.keys())) {
             if (!key.startsWith('term:')) continue;
@@ -612,31 +673,26 @@ async function termRefreshSessions() {
             const preview = aiEscapeHtml(s.lastMsg || '(empty)');
             const dotLabel = s.mode.slice(0, 3);
             const dotTitle = s.key || s.mode;
-            let dot: string;
-            if (!s.alive || !isLoaded) {
-                termPendingNotify.delete(s.port);
-                dot = `<span class="badge rounded-pill bg-danger" title="${aiEscapeHtml(dotTitle)}">${dotLabel}</span>`;
-            } else if (s.busy) {
-                termPendingNotify.delete(s.port);
-                dot = `<span class="badge rounded-pill bg-warning term-busy-dot" title="${aiEscapeHtml(dotTitle)}">${dotLabel}</span>`;
-            } else {
-                if (prevYellowTerm.has(s.port)) {
-                    // busy→not-busy 전환: pending 등록, updatedAt 기록
-                    termPendingNotify.add(s.port);
-                    prevTermUpdatedAt.set(s.port, s.updatedAt);
-                } else if (termPendingNotify.has(s.port)) {
-                    // 두 번째 체크: updatedAt이 안정됐으면 알림 (출력이 진짜 멈춘 것)
+            const st: SessState = !s.alive ? 'off'
+                : s.permPending ? 'wait'
+                : !isLoaded ? 'off'
+                : s.busy ? 'busy'
+                : 'idle';
+            syncSessState(`term:${s.port}`, st,
+                () => {
                     const rawPreview = s.lastMsg || '';
-                    if (prevTermUpdatedAt.get(s.port) === s.updatedAt && (!isActiveFrame(key) || !document.hasFocus())) {
+                    if (!isActiveFrame(key) || !document.hasFocus())
                         _showDoneNotification(`${s.key || s.mode}: ${rawPreview}`.trimEnd(), rawPreview ? preview : undefined, () => termConnectSession(s.port));
-                        termPendingNotify.delete(s.port);
-                        prevTermUpdatedAt.delete(s.port);
-                    } else {
-                        prevTermUpdatedAt.set(s.port, s.updatedAt);
-                    }
+                },
+                () => {
+                    if (!isActiveFrame(key) || !document.hasFocus())
+                        _showDoneNotification(`⚠ ${s.key || s.mode}: 권한 승인 필요`, s.lastMsg || undefined, () => termConnectSession(s.port));
                 }
-                dot = `<span class="badge rounded-pill bg-success" title="${aiEscapeHtml(dotTitle)}">${dotLabel}</span>`;
-            }
+            );
+            const dot = st === 'off'  ? `<span class="badge rounded-pill bg-danger" title="${aiEscapeHtml(dotTitle)}">${dotLabel}</span>`
+                      : st === 'wait' ? `<span class="badge rounded-pill bg-warning term-busy-dot" title="${aiEscapeHtml(dotTitle)}" style="filter:hue-rotate(30deg)">${dotLabel}</span>`
+                      : st === 'busy' ? `<span class="badge rounded-pill bg-warning term-busy-dot" title="${aiEscapeHtml(dotTitle)}">${dotLabel}</span>`
+                      :                 `<span class="badge rounded-pill bg-success" title="${aiEscapeHtml(dotTitle)}">${dotLabel}</span>`;
             item.innerHTML = `
                 <span class="d-flex flex-column align-items-center flex-shrink-0" style="min-width:1.5rem;">
                     ${dot}
@@ -675,7 +731,7 @@ async function termRefreshSessions() {
                     b.addEventListener('click', () => {
                         drop.remove();
                         if (b.dataset.act === 'kill') {
-                            termKillSession(s.port);
+                            termConfirmKillSession(s.port);
                         } else if (b.dataset.act === 'link') {
                             termShowShareLink(s.port);
                         } else {
@@ -799,7 +855,7 @@ async function schedRefresh() {
             item.style.cursor = 'pointer';
             item.innerHTML = `
                 <span class="d-flex flex-column align-items-center flex-shrink-0" style="min-width:2rem;">
-                    <span class="badge rounded-pill ${s.mode==='none'?'bg-secondary':s.mode==='cmd'?'bg-info':s.mode==='claude'?'bg-warning text-dark':s.mode==='gemini'?'bg-success':s.mode==='codex'?'bg-primary':'bg-danger'}" style="font-size:0.65rem;">${s.mode==='antigravity'?'agy':s.mode}</span>
+                    <span class="badge rounded-pill ${s.mode==='none'?'bg-secondary':s.mode==='cmd'?'bg-info':s.mode==='claude'?'bg-warning text-dark':/*s.mode==='gemini'?'bg-success':*/s.mode==='codex'?'bg-primary':'bg-danger'}" style="font-size:0.65rem;">${s.mode==='antigravity'?'agy':s.mode}</span>
                     <span class="text-secondary" style="font-size:0.68rem;white-space:nowrap;">${schedIntervalStr(s)}</span>
                 </span>
                 <span class="flex-grow-1 min-w-0 d-flex flex-column" style="min-width:0;">
@@ -842,7 +898,7 @@ function schedOpenModal(existing?: ScheduleData) {
                 <button class="sched-mode-btn btn btn-sm btn-outline-secondary" data-mode="none">none</button>
                 <button class="sched-mode-btn btn btn-sm btn-outline-secondary" data-mode="cmd">cmd</button>
                 <button class="sched-mode-btn btn btn-sm btn-outline-secondary" data-mode="claude">claude</button>
-                <button class="sched-mode-btn btn btn-sm btn-outline-secondary" data-mode="gemini">gemini</button>
+                <!-- <button class="sched-mode-btn btn btn-sm btn-outline-secondary" data-mode="gemini">gemini</button> -->
                 <button class="sched-mode-btn btn btn-sm btn-outline-secondary" data-mode="codex">codex</button>
                 <button class="sched-mode-btn btn btn-sm btn-outline-secondary" data-mode="antigravity">agy</button>
             </div>
@@ -980,9 +1036,16 @@ window.addEventListener('message', (e) => {
     if (e.data?.type === 'terminal-tab-key') {
         handleTabKey();
     }
+    if (e.data?.type === 'terminal-arrow-key') {
+        if (e.data.key === 'ArrowLeft') goPrevFrame();
+        else if (e.data.key === 'ArrowUp') goNextSession(-1);
+        else if (e.data.key === 'ArrowDown') goNextSession(1);
+        else handleNotifKey();
+    }
     if (e.data?.type === 'home-hotkey') {
         const k = e.data.key as string;
-        if (k === 'F2') FileSearch();
+        if (k === 'F1') FileBtn();
+        else if (k === 'F2') FileSearch();
         else if (k === 'F3') {
             const fileTabEl = document.getElementById('file-tab') as HTMLElement;
             if (fileTabEl) (window as any).bootstrap.Tab.getOrCreateInstance(fileTabEl).show();
@@ -995,12 +1058,68 @@ window.addEventListener('message', (e) => {
 });
 
 function handleTabKey() {
+    toggleSidebar();
+}
+
+// → 로 알림 세션 전환 직후, ← 로 돌아갈 직전 세션. 시간이 지나면 해제된다.
+let _notifReturnKey: string | null = null;
+let _notifReturnTimer: number | null = null;
+
+// 활성 알림(완료 메세지) 콜백을 발화한다. → 화살표로 호출된다.
+function handleNotifKey(): boolean {
     if (_activeNotifCallback) {
         const cb = _activeNotifCallback;
         _activeNotifCallback = null;
-        cb();
+        const from = activeFrameKey;   // 전환 전 세션 기록
+        cb();                          // 알림 세션으로 전환
+        if (from && from !== activeFrameKey) {
+            _notifReturnKey = from;
+            if (_notifReturnTimer) clearTimeout(_notifReturnTimer);
+            _notifReturnTimer = window.setTimeout(() => { _notifReturnKey = null; }, 8000);
+        }
+        focusActiveFrameIfSidebarCollapsed();
+        return true;
+    }
+    return false;
+}
+
+// ← 화살표: 직전에 보던 세션으로 복귀(알림 전환 직후에만 armed).
+function goPrevFrame(): boolean {
+    if (!_notifReturnKey || _notifReturnKey === activeFrameKey) return false;
+    const f = iframePool.get(_notifReturnKey);
+    if (!f) { _notifReturnKey = null; return false; }
+    showFrame(_notifReturnKey, f.src);
+    _notifReturnKey = null;
+    if (_notifReturnTimer) { clearTimeout(_notifReturnTimer); _notifReturnTimer = null; }
+    aiRefreshSessions();
+    termRefreshSessions();
+    focusActiveFrameIfSidebarCollapsed();
+    return true;
+}
+
+// ↑↓ 화살표: 사이드바가 열려 있을 때 세션 목록 위아래 이동
+function goNextSession(dir: 1 | -1): boolean {
+    if (aiSidebarEl.classList.contains('collapsed')) return false;
+    const isChat = !activeFrameKey || activeFrameKey.startsWith('chat:');
+    if (isChat) {
+        const items = Array.from(aiSessionList.querySelectorAll<HTMLElement>('[data-sid]'));
+        if (items.length === 0) return false;
+        const curIdx = activeFrameKey ? items.findIndex(el => el.dataset.sid === activeFrameKey.slice(5)) : -1;
+        const nxt = curIdx === -1 ? (dir === 1 ? 0 : items.length - 1) : Math.max(0, Math.min(items.length - 1, curIdx + dir));
+        if (nxt === curIdx) return false;
+        const sid = items[nxt].dataset.sid!;
+        aiLoadSession(sid);
+        items[nxt].scrollIntoView({ block: 'nearest' });
+        return true;
     } else {
-        toggleSidebar();
+        const items = Array.from(termSessionList.querySelectorAll<HTMLElement>('[data-port]'));
+        if (items.length === 0) return false;
+        const curIdx = activeFrameKey ? items.findIndex(el => `term:${el.dataset.port}` === activeFrameKey) : -1;
+        const nxt = curIdx === -1 ? (dir === 1 ? 0 : items.length - 1) : Math.max(0, Math.min(items.length - 1, curIdx + dir));
+        if (nxt === curIdx) return false;
+        termConnectSession(parseInt(items[nxt].dataset.port!));
+        items[nxt].scrollIntoView({ block: 'nearest' });
+        return true;
     }
 }
 
@@ -1021,16 +1140,37 @@ function toggleSidebar() {
     const next = !aiSidebarEl.classList.contains('collapsed');
     localStorage.setItem(AI_SIDEBAR_COLLAPSED_KEY, next ? '1' : '0');
     applySidebarCollapsed(next);
+    setTimeout(() => next ? focusActiveFrame() : aiSidebarEl.focus(), 0);
 }
 aiSidebarToggleBtn.addEventListener('click', toggleSidebar);
 document.addEventListener('keydown', (e) => {
+    if (isAiPanelActive() && isAiAuthVisible()) return;
     if (e.key === 'Tab') {
-        if (!document.getElementById('ai-panel')?.classList.contains('active')) return;
+        if (!isAiPanelActive()) return;
         e.preventDefault();
         handleTabKey();
         return;
     }
-    if (e.key === 'F2') {
+    if (handleTermSidebarShortcut(e)) return;
+    if (e.key === 'ArrowRight') {
+        if (!isAiPanelActive()) return;
+        if (_activeNotifCallback) { e.preventDefault(); handleNotifKey(); }
+        return;
+    }
+    if (e.key === 'ArrowLeft') {
+        if (!isAiPanelActive()) return;
+        if (goPrevFrame()) e.preventDefault();
+        return;
+    }
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        if (!isAiPanelActive()) return;
+        if (goNextSession(e.key === 'ArrowUp' ? -1 : 1)) e.preventDefault();
+        return;
+    }
+    if (e.key === 'F1') {
+        e.preventDefault();
+        FileBtn();
+    } else if (e.key === 'F2') {
         e.preventDefault();
         FileSearch();
     } else if (e.key === 'F3') {
@@ -1051,6 +1191,8 @@ const aiAuthPwInput = CDOM.ID("aiAuthPwInput") as HTMLInputElement;
 const aiAuthMsg     = CDOM.ID("aiAuthMsg") as HTMLElement;
 const aiAuthSubmitBtn = CDOM.ID("aiAuthSubmitBtn") as HTMLButtonElement;
 
+aiAuthOverlay.addEventListener('keydown', (e) => e.stopPropagation());
+
 async function aiCheckAuth(): Promise<boolean> {
     const token = localStorage.getItem(AI_TOKEN_KEY) || '';
     if (!token) return false;
@@ -1064,10 +1206,13 @@ async function aiShowAuthOrLoad() {
     const authed = await aiCheckAuth();
     if (!authed) {
         fileAuthed = false;
+        const wasVisible = aiAuthOverlay.style.display === 'flex';
         aiAuthOverlay.style.display = 'flex';
-        aiAuthPwInput.value = '';
-        aiAuthMsg.textContent = '';
-        setTimeout(() => aiAuthPwInput.focus(), 50);
+        if (!wasVisible) {
+            aiAuthPwInput.value = '';
+            aiAuthMsg.textContent = '';
+            setTimeout(() => aiAuthPwInput.focus(), 50);
+        }
     } else {
         fileAuthed = true;
         aiAuthOverlay.style.display = 'none';
@@ -1103,13 +1248,20 @@ aiAuthPwInput.addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 
 CDOM.ID("ai-chat-subtab").addEventListener("shown.bs.tab", () => aiRefreshSessions());
 CDOM.ID("ai-term-subtab").addEventListener("shown.bs.tab", () => { termRefreshSessions(); schedRefresh(); });
 
+function showAiTermSubtab() {
+    const termSubEl = CDOM.ID("ai-term-subtab") as HTMLElement;
+    (window as any).bootstrap.Tab.getOrCreateInstance(termSubEl).show();
+}
+
 CDOM.ID("ai-tab").addEventListener("shown.bs.tab", () => {
     aiInited = true;
+    showAiTermSubtab();
     aiShowAuthOrLoad();
 });
 // also init if AI tab is the restored last-active tab
 if (CDOM.ID("ai-panel").classList.contains("show")) {
     aiInited = true;
+    showAiTermSubtab();
     aiShowAuthOrLoad();
 }
 
@@ -1133,28 +1285,22 @@ g_deleteJBox.Open(CModal.ePos.Center);
 
 
 
-var g_musicJBox=new CModal("music_modal");
-g_musicJBox.SetSize(400,600);
-g_musicJBox.SetCloseToHide(true);
-g_musicJBox.SetBody(`<div id='Music_div'>
-        
-        <button type='button' class='btn btn-primary' style='margin: 4px;' onclick='SoundEachCopy()'>Copy Each</button>
-        <button type='button' class='btn btn-danger' style='margin: 4px;' onclick='SoundAllDelate()'>Delete All</button>
-        
-        <button type='button' class='btn btn-warning' style='margin: 4px;' onclick='SoundPlayListSave()'>Save List</button>
-        <div id='SoundNowPlaying' style='padding:6px;font-weight:bold;color:#0d6efd;'></div>
-        <audio id='MAudio' controls playsinline preload="auto"></audio>
-        <div class='form-check'>
-            <input class='form-check-input' type='checkbox' id='SoundRandom_chk' checked>
-            <label class='form-check-label' for='SoundRandom_chk'>Random Play</label>
-        </div>
-
-        <hr><div id='SoundList'></div>
-    </div>`);
-g_musicJBox.Hide();
-g_musicJBox.Open(CModal.ePos.Center);
+var g_musicJBox: CModalMusic;
 
 
+
+function vcsTag(fl: { Status?: string, name?: string }): string {
+    const s = fl.Status;
+    if (!s) return '';
+    const color = s === 'A' ? 'success' : s === 'D' ? 'danger' : s === 'M' ? 'warning' : 'secondary';
+    const canDiff = s === 'M' || s === 'A' || s === 'D';
+    if (canDiff) {
+        const filePath = ((window["g_root"] as string) ?? '') + ((window["g_path"] as string) ?? '') + (fl.name ?? '');
+        const escaped = filePath.replace(/'/g, "\\'");
+        return `<span class="badge bg-${color} float-end" style="font-size:0.65rem;cursor:pointer;" onclick="event.stopPropagation();openVcsDiff('${escaped}')">${s}</span>`;
+    }
+    return `<span class="badge bg-${color} float-end" style="font-size:0.65rem;">${s}</span>`;
+}
 
 let index=0;
 var folderList={"<>":"ul","class":"list-group","html":[]};
@@ -1181,7 +1327,7 @@ function DirListRefresh()
         });
     }
 
-    for(let fl of window["g_dirList"] as Array<{hidden:boolean,file:boolean,name:string,ext:string,open:boolean,index:number}>)
+    for(let fl of window["g_dirList"] as Array<{hidden:boolean,file:boolean,name:string,ext:string,open:boolean,index:number,Status?:string}>)
     {
         if(fl.hidden)   continue;
         fl.open=false;
@@ -1193,7 +1339,7 @@ function DirListRefresh()
         if(fl.file==false)
         {
             folderList.html.push({"<>":"li","class":"list-group-item list-group-item-action","id":"fl"+fl.index,
-                "html":"<i class='bi bi-folder-fill'>"+fl.name,"onclick":()=>{
+                "html":"<i class='bi bi-folder-fill'>"+fl.name+vcsTag(fl),"onclick":()=>{
                 let soundAddType=CDOM.IDValue("soundAddType");
                 if(soundAddType=="1")
                 {
@@ -1208,20 +1354,10 @@ function DirListRefresh()
                         for(let fl2 of data.list as Array<{hidden:boolean,file:boolean,name:string,ext:string}>)
                         {
                             if(fl.name==fl2.name)   continue;
-                            
-                            if(fl2.ext=="mp3" || fl.ext=="ogg")
-                            {
-                                if(SoundListDupChk(window["g_down"]+window["g_path"]+fl.name+"/"+fl2.name)==false)
-                                {
-                                    g_soundList.fullPath.push(window["g_down"]+window["g_path"]+fl.name+"/"+fl2.name);
-                                    g_soundList.name.push(fl2.name);
-                                }
-                                
-                                
-                            }
+                            if(fl2.ext=="mp3" || fl2.ext=="ogg")
+                                g_musicJBox.AddTrack(fl2.name, window["g_down"]+window["g_path"]+fl.name+"/"+fl2.name);
                         }
-                        SoundListRefresh();
-                        SoundPlay(0);
+                        g_musicJBox.Play(0);
                     });
                 }
                 else
@@ -1231,7 +1367,7 @@ function DirListRefresh()
         else if(fl.ext=="png" || fl.ext=="jpg" || fl.ext=="jpeg" || fl.ext=="bmp")
         {
             folderList.html.push({"<>":"li","class":"list-group-item list-group-item-action","id":"fl"+fl.index,
-                "html":"<i class='bi bi-folder-image'>"+fl.name,"onclick":(e)=>{
+                "html":"<i class='bi bi-folder-image'>"+fl.name+vcsTag(fl),"onclick":(e)=>{
                 CDOM.ID("ImageModalSrc").hidden=false;
                 (CDOM.ID("ImageModalSrc") as HTMLImageElement).src=window["g_down"]+window["g_path"]+fl.name;
                 CDOM.ID("VideoModalSrc").hidden=true;
@@ -1247,7 +1383,7 @@ function DirListRefresh()
         // else if(fl.ext=="ts" || fl.ext=="js" || fl.ext=="html" || fl.ext=="json")
         // {
         //     folderList.html.push({"<>":"li","class":"list-group-item list-group-item-action","id":"fl"+fl.index,
-        //         "html":"<i class='bi bi-file-earmark'>"+fl.name,"onclick":(e)=>{
+        //         "html":"<i class='bi bi-file-earmark'>"+fl.name+vcsTag(fl),"onclick":(e)=>{
                 
 
         //         let modal=new CSourceViewer([window["g_down"]+window["g_path"]+fl.name]);
@@ -1260,48 +1396,29 @@ function DirListRefresh()
         else if(fl.ext=="mp3" || fl.ext=="ogg")
         {
             folderList.html.push({"<>":"li","class":"list-group-item list-group-item-action","id":"fl"+fl.index,
-                "html":"<i class='bi bi-folder-music'>"+fl.name,"onclick":()=>{
-                //g_soundList.fullPath.push();
+                "html":"<i class='bi bi-folder-music'>"+fl.name+vcsTag(fl),"onclick":()=>{
                 let soundAddType=CDOM.IDValue("soundAddType");
                 if(soundAddType=="1")
                 {
-                    if(SoundListDupChk(window["g_down"]+window["g_path"]+fl.name)==false)
-                    {
-                        g_soundList.fullPath.push(window["g_down"]+window["g_path"]+fl.name);
-                        g_soundList.name.push(fl.name);
-                    }
-                    
+                    g_musicJBox.AddTrack(fl.name, window["g_down"]+window["g_path"]+fl.name);
                     CAlert.Info(fl.name+" 추가");
                 }
                 else
                 {
-                    
-
-                    g_soundList.name.length=0;
-                    g_soundList.fullPath.length=0;
-                    g_soundList.fullPath.push(window["g_down"]+window["g_path"]+fl.name);
-                    g_soundList.name.push(fl.name);
-
+                    const _newNames: string[] = [fl.name];
+                    const _newPaths: string[] = [window["g_down"]+window["g_path"]+fl.name];
                     for(let fl2 of window["g_dirList"] as Array<{hidden:boolean,file:boolean,name:string,ext:string}>)
                     {
                         if(fl.name==fl2.name)   continue;
-                        
-                        if(fl2.ext=="mp3" || fl.ext=="ogg")
+                        if(fl2.ext=="mp3" || fl2.ext=="ogg")
                         {
-                            if(SoundListDupChk(window["g_down"]+window["g_path"]+fl2.name)==false)
-                            {
-                                g_soundList.fullPath.push(window["g_down"]+window["g_path"]+fl2.name);
-                                g_soundList.name.push(fl2.name);
-                            }
-                            
-                            
+                            const _fp = window["g_down"]+window["g_path"]+fl2.name;
+                            if(!_newPaths.includes(_fp)) { _newNames.push(fl2.name); _newPaths.push(_fp); }
                         }
                     }
-                    SoundListRefresh();
-                    SoundPlay(0);
+                    g_musicJBox.SetList(_newNames, _newPaths);
+                    g_musicJBox.Play(0);
                 }
-                
-                SoundListSave();
                 fl.open=true;
                 RefreshOpen();
                 
@@ -1310,7 +1427,7 @@ function DirListRefresh()
         else if(fl.ext=="mp4" || fl.ext=="mov" || fl.ext=="avi")
         {
             folderList.html.push({"<>":"li","class":"list-group-item list-group-item-action","id":"fl"+fl.index,
-                "html":"<i class='bi bi-folder-play'>"+fl.name,"onclick":()=>{
+                "html":"<i class='bi bi-folder-play'>"+fl.name+vcsTag(fl),"onclick":()=>{
                 
                 CDOM.ID("ImageModalSrc").hidden=true;
                 (CDOM.ID("VideoModalSrc") as HTMLVideoElement).src=window["g_down"]+window["g_path"]+fl.name;
@@ -1326,7 +1443,7 @@ function DirListRefresh()
         else if(fl.ext=="soundlist")
         {
             folderList.html.push({"<>":"li","class":"list-group-item list-group-item-action","id":"fl"+fl.index,
-                "html":"<i class='bi bi-flower1'>"+fl.name,"onclick":()=>{
+                "html":"<i class='bi bi-flower1'>"+fl.name+vcsTag(fl),"onclick":()=>{
                 var oReq = new XMLHttpRequest();
                 oReq.onload = (e)=> 
                 {
@@ -1336,8 +1453,8 @@ function DirListRefresh()
                     }
                     else
                     {
-                        g_soundList=oReq.response;
-                        SoundListSave();
+                        const _d = oReq.response;
+                        g_musicJBox.SetList(_d.name || [], _d.fullPath || []);
                         CAlert.Info("ListUp!");
                     }
                 }
@@ -1349,7 +1466,7 @@ function DirListRefresh()
         else if(fl.ext=="html")
         {
             folderList.html.push({"<>":"li","class":"list-group-item list-group-item-action","id":"fl"+fl.index,
-                "html":"<i class='bi bi-file-earmark-code'>"+fl.name,"onclick":()=>{
+                "html":"<i class='bi bi-file-earmark-code'>"+fl.name+vcsTag(fl),"onclick":()=>{
                 let confirm=new CConfirm();
                 confirm.SetBody("HTML 파일을 어떻게 열까요?");
                 confirm.SetConfirm(CConfirm.eConfirm.YesNo,[
@@ -1374,7 +1491,7 @@ function DirListRefresh()
         else if(fl.ext=="ts" || fl.ext=="js" || fl.ext=="txt" || fl.ext=="json")
         {
             folderList.html.push({"<>":"li","class":"list-group-item list-group-item-action","id":"fl"+fl.index,
-                "html":"<i class='bi bi-file-code'>"+fl.name,"onclick":()=>{
+                "html":"<i class='bi bi-file-code'>"+fl.name+vcsTag(fl),"onclick":()=>{
                                 
                 
                 let viewer = new CFileViewer([window["g_down"]+window["g_path"]+fl.name], async (filePath, bufStr) => {
@@ -1394,14 +1511,14 @@ function DirListRefresh()
         else if(fl.ext=="md")
         {
             folderList.html.push({"<>":"li","class":"list-group-item list-group-item-action","id":"fl"+fl.index,
-                "html":"<i class='bi bi-file-earmark-text'>"+fl.name,"onclick":(e)=>{
+                "html":"<i class='bi bi-file-earmark-text'>"+fl.name+vcsTag(fl),"onclick":(e)=>{
                 new CMDViewer(window["g_down"]+window["g_path"]+fl.name);
             }});
         }
         else if(fl.ext=="csv" || fl.ext=="xlsx" || fl.ext=="xls")
         {
             folderList.html.push({"<>":"li","class":"list-group-item list-group-item-action","id":"fl"+fl.index,
-                "html":"<i class='bi bi-file-earmark-spreadsheet'>"+fl.name,"onclick":()=>{
+                "html":"<i class='bi bi-file-earmark-spreadsheet'>"+fl.name+vcsTag(fl),"onclick":()=>{
                 new CSheetViewer([window["g_down"]+window["g_path"]+fl.name], async (filePath, base64) => {
                     const fileName = filePath.split('/').pop();
                     const dirPath = window["g_root"] + window["g_path"];
@@ -1416,7 +1533,7 @@ function DirListRefresh()
         else
         {
             folderList.html.push({"<>":"li","class":"list-group-item list-group-item-action","id":"fl"+fl.index,
-                "html":"<i class='bi bi-file'>"+fl.name,"onclick":()=>{
+                "html":"<i class='bi bi-file'>"+fl.name+vcsTag(fl),"onclick":()=>{
                 
                 CDOM.ID("ImageModalSrc").hidden=true;
                 (CDOM.ID("FileModalSrc") as HTMLLinkElement).href=window["g_down"]+window["g_path"]+fl.name;
@@ -1431,7 +1548,7 @@ function DirListRefresh()
         if(fl.file==true)
         {
             fileList.html.push({"<>":"li","class":"list-group-item list-group-item-action","id":"fl"+fl.index,
-                "html":"<i class='bi bi-file'>"+fl.name,"onclick":()=>{
+                "html":"<i class='bi bi-file'>"+fl.name+vcsTag(fl),"onclick":()=>{
                 Delete(fl.name);
             }});
         }
@@ -1459,21 +1576,26 @@ let fetchParam: any = {path:path};
 if(RootPath) fetchParam.RootPath = RootPath;
 if(RootUrl)     fetchParam.RootUrl = RootUrl;
 
-CFecth.Exe("File/List",fetchParam,"json").then((data : {"list","RootPath","path","RootUrl"})=>{
+CFecth.Exe("File/List",fetchParam,"json").then((data : {"list","RootPath","path","RootUrl","roots"})=>{
     CStorage.Set(path==null?"root":path,JSON.stringify(data.list));
     window["g_dirList"]=data.list;
     window["g_root"]=(data.RootPath as string)?.replace(/\/+$/, '') ?? '';
     window["g_path"]=data.path;
     window["g_down"]=data.RootUrl;
+    window["g_roots"]=data.roots ?? [];
     DirListRefresh();
 });
 
 
 
-let g_soundList={"fullPath":[],"name":[]};
-let SoundListStr=CStorage.Get("SoundList");
-if(SoundListStr!=null)
-    g_soundList=JSON.parse(SoundListStr);
+{
+    const _sd = CStorage.Get("SoundList");
+    const _d = _sd ? JSON.parse(_sd) : {name:[] as string[], fullPath:[] as string[]};
+    g_musicJBox = new CModalMusic(
+        _d.name, _d.fullPath,
+        (names, paths) => CStorage.Set("SoundList", JSON.stringify({name:names,fullPath:paths}))
+    );
+}
 
 function FolderCD(_path, _onDone?: () => void)
 {
@@ -1481,11 +1603,12 @@ function FolderCD(_path, _onDone?: () => void)
     let p2: any = {path:_path};
     if(RootPath) p2.RootPath = RootPath;
     if(RootUrl)     p2.RootUrl = RootUrl;
-    CFecth.Exe("File/List",p2,"json").then((data : {"list","RootPath","path","RootUrl"})=>{
+    CFecth.Exe("File/List",p2,"json").then((data : {"list","RootPath","path","RootUrl","roots"})=>{
         window["g_dirList"]=data.list;
         window["g_root"]=(data.RootPath as string)?.replace(/\/+$/, '') ?? '';
         window["g_path"]=data.path;
         window["g_down"]=data.RootUrl;
+        window["g_roots"]=data.roots ?? [];
         index=0;
         DirListRefresh();
         _onDone?.();
@@ -1545,13 +1668,13 @@ var g_menuList={"<>":"div","class":"d-flex align-items-center p-1","html":[
             {"<>":"option","value":"1","text":"Add Each (w/ Folder)"},
         ]},
         {"<>":"button","type":"button","class":"btn btn-sm btn-outline-info","html":"Search <span style='font-size:0.75em;opacity:0.7;'>F2</span>","onclick":()=>{FileSearch();}},
-        {"<>":"button","type":"button","class":"btn btn-sm btn-outline-secondary","text":"Permission","onclick":()=>{PermissionBtn();}},
+        {"<>":"button","type":"button","class":"btn btn-sm btn-outline-secondary","html":"File <span style='font-size:0.75em;opacity:0.7;'>F1</span>","onclick":()=>{FileBtn();}},
     ]},
 ]};
 
 CDOM.ID("Menu_div").append(CDOM.DataToDom(g_menuList));
 
-async function PermissionBtn() {
+async function FileBtn() {
     if (fileAuthed) {
         // 서버 토큰 유효성 검증 (서버 재시작 시 메모리 토큰 초기화됨)
         const valid = await aiCheckAuth();
@@ -1584,12 +1707,19 @@ async function PermissionBtn() {
     ], ["OK", "Cancel"]);
     dlg.Open();
 }
-window["PermissionBtn"] = PermissionBtn;
+window["FileBtn"] = FileBtn;
+window["PermissionBtn"] = FileBtn;
 
 function showFileAdminModal() {
     const uid = Date.now();
-    const curRoot = RootPath || (window["g_root"] as string) || "";
-    const curDown = RootUrl || (window["g_down"] as string) || "";
+
+    const _roots = (window["g_roots"] as Array<{path:string,url:string,name:string}>) ?? [];
+    // 설정 루트들 + 아티젠(워킹) 경로를 한 셀렉트에 통합
+    const _opts = [..._roots, { path: "./", url: "/Artgine/", name: "Artgine (WorkingPath)" }];
+    // 현재 활성 항목 표시: RootPath+RootUrl 조합 매칭, 기본(미선택)이면 첫 루트
+    let _curIdx = _opts.findIndex(r => r.path === (RootPath ?? '') && r.url === (RootUrl ?? ''));
+    if (_curIdx < 0) _curIdx = 0;
+    const _rootOpts = _opts.map((r, i) => `<option value="${i}" ${i === _curIdx ? 'selected' : ''}>${r.name}</option>`).join('');
 
     const modal = new CModal();
     modal.SetHeader("File Manager");
@@ -1597,36 +1727,51 @@ function showFileAdminModal() {
     modal.SetCloseToHide(false);
     modal.SetBody(`
         <div class="d-flex flex-column gap-2 p-2" style="min-width:260px;">
-            <div>
-                <label class="form-label mb-0 small fw-bold">Path</label>
-                <input id="fadm_path_${uid}" type="text" class="form-control form-control-sm" value="${curRoot}" placeholder="Server default">
-            </div>
-            <div>
-                <label class="form-label mb-0 small fw-bold">Down</label>
-                <input id="fadm_down_${uid}" type="text" class="form-control form-control-sm" value="${curDown}" placeholder="Server default">
-            </div>
-            <button id="fadm_apply_${uid}" class="btn btn-sm btn-success">Apply</button>
-            <div class="d-flex gap-1">
-                <button id="fadm_defpath_${uid}" class="btn btn-sm btn-outline-secondary flex-fill">RootPath</button>
-                <button id="fadm_artpath_${uid}" class="btn btn-sm btn-outline-primary flex-fill">ArtginePath</button>
-            </div>
+            <select id="fadm_rootsel_${uid}" class="form-select form-select-sm">${_rootOpts}</select>
             <hr class="my-0">
-            <button id="fadm_share_${uid}" class="btn btn-outline-info">Share</button>
-            <button id="fadm_folder_${uid}" class="btn btn-warning">New Folder</button>
-            <button id="fadm_delete_${uid}" class="btn btn-danger">Delete</button>
-            <button id="fadm_upload_${uid}" class="btn btn-primary">Upload</button>
             <div class="d-flex gap-1">
                 <button id="fadm_chat_${uid}" class="btn btn-outline-primary flex-fill">Chat</button>
                 <button id="fadm_term_${uid}" class="btn btn-outline-success flex-fill">Terminal</button>
+            </div>
+            <hr class="my-0">
+            <div class="accordion" id="fadm_acc_${uid}">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button py-2" type="button" data-bs-toggle="collapse" data-bs-target="#fadm_file_actions_body_${uid}" aria-expanded="true" aria-controls="fadm_file_actions_body_${uid}">
+                            File Actions
+                        </button>
+                    </h2>
+                    <div id="fadm_file_actions_body_${uid}" class="accordion-collapse collapse show" data-bs-parent="#fadm_acc_${uid}">
+                        <div class="accordion-body d-flex flex-column gap-2 p-2">
+                            <button id="fadm_share_${uid}" class="btn btn-outline-info">Share</button>
+                            <button id="fadm_folder_${uid}" class="btn btn-warning">New Folder</button>
+                            <button id="fadm_delete_${uid}" class="btn btn-danger">Delete</button>
+                            <button id="fadm_upload_${uid}" class="btn btn-primary">Upload</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button py-2 collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#fadm_vcs_body_${uid}" aria-expanded="false" aria-controls="fadm_vcs_body_${uid}">
+                            Version Control
+                        </button>
+                    </h2>
+                    <div id="fadm_vcs_body_${uid}" class="accordion-collapse collapse" data-bs-parent="#fadm_acc_${uid}">
+                        <div class="accordion-body d-flex flex-column gap-2 p-2">
+                            <button id="fadm_vcs_diff_${uid}" class="btn btn-outline-secondary btn-sm w-100">Diff</button>
+                            <button id="fadm_vcs_update_${uid}" class="btn btn-outline-primary btn-sm w-100">Update</button>
+                            <button id="fadm_vcs_add_${uid}" class="btn btn-outline-info btn-sm w-100">Add (SVN)</button>
+                            <button id="fadm_vcs_revert_${uid}" class="btn btn-outline-warning btn-sm w-100">Revert</button>
+                            <button id="fadm_vcs_commit_${uid}" class="btn btn-outline-success btn-sm w-100">Commit & Push</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     `);
     modal.Open(CModal.ePos.Center);
 
     setTimeout(() => {
-        const pathInput = document.getElementById(`fadm_path_${uid}`) as HTMLInputElement;
-        const downInput = document.getElementById(`fadm_down_${uid}`) as HTMLInputElement;
-
         const applyValues = (root: string, down: string) => {
             RootPath = root || null;
             RootUrl = down || null;
@@ -1634,18 +1779,10 @@ function showFileAdminModal() {
             FolderCD("/");
         };
 
-        document.getElementById(`fadm_apply_${uid}`)?.addEventListener('click', () => {
-            applyValues(pathInput.value.trim(), downInput.value.trim());
-        });
-        document.getElementById(`fadm_defpath_${uid}`)?.addEventListener('click', () => {
-            pathInput.value = "";
-            downInput.value = "";
-            applyValues("", "");
-        });
-        document.getElementById(`fadm_artpath_${uid}`)?.addEventListener('click', () => {
-            pathInput.value = "./";
-            downInput.value = "/Artgine/";
-            applyValues("./", "/Artgine/");
+        const rootSel = document.getElementById(`fadm_rootsel_${uid}`) as HTMLSelectElement | null;
+        rootSel?.addEventListener('change', () => {
+            const r = _opts[parseInt(rootSel.value)];
+            if (r) applyValues(r.path, r.url);
         });
         document.getElementById(`fadm_share_${uid}`)?.addEventListener('click', () => {
             modal.Hide(); FileShare();
@@ -1654,7 +1791,7 @@ function showFileAdminModal() {
             modal.Hide(); CreateFolder();
         });
         document.getElementById(`fadm_delete_${uid}`)?.addEventListener('click', () => {
-            modal.Hide(); g_deleteJBox.Show();
+            openDeleteModal();
         });
         document.getElementById(`fadm_upload_${uid}`)?.addEventListener('click', () => {
             modal.Hide(); (CDOM.ID("uploadBtn") as HTMLInputElement).click();
@@ -1681,9 +1818,197 @@ function showFileAdminModal() {
             }, 150);
             termStartNew('cmd', cwd || undefined);
         });
+
+        const vcsPath = () => ((window["g_root"] as string) ?? './') + ((window["g_path"] as string) ?? '');
+
+        document.getElementById(`fadm_vcs_diff_${uid}`)?.addEventListener('click', () => openVcsDiff(vcsPath()));
+        document.getElementById(`fadm_vcs_update_${uid}`)?.addEventListener('click', async () => {
+            const res = await CFecth.Exe(CPath.WebRootUrl() + "File/VCS", { action: "update", path: vcsPath() }, "json") as any;
+            CAlert.Info(res.msg || (res.ok ? 'Update complete' : 'Update failed'));
+            if (res.ok) FolderCD(window["g_path"]);
+        });
+        document.getElementById(`fadm_vcs_add_${uid}`)?.addEventListener('click', () => openVcsModal('add', vcsPath()));
+        document.getElementById(`fadm_vcs_revert_${uid}`)?.addEventListener('click', () => openVcsModal('revert', vcsPath()));
+        document.getElementById(`fadm_vcs_commit_${uid}`)?.addEventListener('click', () => openVcsModal('commit', vcsPath()));
     }, 80);
 }
 window["showFileAdminModal"] = showFileAdminModal;
+
+type ActionItem = {badge?:string, badgeClass?:string, icon?:string, label:string, value:string, checked?:boolean};
+type ActionRunFn = (values: string[], message?: string) => Promise<{result: string, refresh?: boolean}>;
+
+function openActionModal(
+    title: string,
+    runLabel: string,
+    runClass: string,
+    onRun: ActionRunFn,
+    hasMessage = false,
+    fetchItems?: () => Promise<ActionItem[]>,
+    staticItems?: ActionItem[]
+) {
+    const uid = Date.now();
+    const hasFetch = !!fetchItems;
+
+    const modal = new CModal();
+    modal.SetHeader(title);
+    modal.SetTitle(CModal.eTitle.TextClose);
+    modal.SetBody(`
+        <div class="d-flex flex-column gap-2 p-1" style="width:380px;height:480px;overflow:hidden;">
+            ${hasFetch ? `
+            <div class="d-flex gap-2 align-items-center flex-shrink-0">
+                ${hasMessage ? `<input id="am_msg_${uid}" type="text" class="form-control form-control-sm flex-fill" placeholder="Commit message...">` : ''}
+                <button id="am_refresh_${uid}" class="btn btn-outline-secondary btn-sm flex-shrink-0"><i class="bi bi-arrow-clockwise"></i></button>
+            </div>` : hasMessage ? `<input id="am_msg_${uid}" type="text" class="form-control form-control-sm flex-shrink-0" placeholder="Commit message...">` : ''}
+            <div id="am_list_${uid}" class="border rounded p-1 flex-fill" style="overflow-y:auto;font-size:0.78rem;min-height:0;">
+                ${hasFetch ? '<span class="text-secondary">Loading...</span>' : ''}
+            </div>
+            <div class="d-flex gap-1 flex-shrink-0">
+                <button id="am_all_${uid}" class="btn btn-outline-secondary btn-sm">Select All</button>
+                <button id="am_run_${uid}" class="btn ${runClass} btn-sm flex-fill">${runLabel}</button>
+            </div>
+            <pre id="am_result_${uid}" class="p-2 rounded bg-body-secondary small mb-0 flex-shrink-0" style="display:none;max-height:120px;overflow-y:auto;white-space:pre-wrap;"></pre>
+        </div>
+    `);
+    modal.Open(CModal.ePos.Center);
+
+    const listEl   = document.getElementById(`am_list_${uid}`)!;
+    const resultEl = document.getElementById(`am_result_${uid}`)!;
+    const allBtn   = document.getElementById(`am_all_${uid}`)!;
+    const runBtn   = document.getElementById(`am_run_${uid}`)!;
+    const msgEl    = document.getElementById(`am_msg_${uid}`) as HTMLInputElement | null;
+
+    const renderItems = (items: ActionItem[] | undefined) => {
+        if (!items || items.length === 0) { listEl.innerHTML = '<span class="text-secondary">No items</span>'; return; }
+        listEl.innerHTML = items.map((i, idx) => `
+            <div class="d-flex align-items-center gap-1 py-1">
+                <input type="checkbox" class="form-check-input am-chk-${uid}" id="am_${uid}_${idx}" value="${i.value}" ${i.checked !== false ? 'checked' : ''}>
+                ${i.badge ? `<span class="badge bg-${i.badgeClass ?? 'secondary'}" style="font-size:0.65rem;min-width:1.4rem;">${i.badge}</span>` : ''}
+                ${i.icon  ? `<i class="bi ${i.icon}"></i>` : ''}
+                <label for="am_${uid}_${idx}" class="text-truncate mb-0 flex-fill" style="cursor:pointer;" title="${i.label}">${i.label}</label>
+            </div>`).join('');
+    };
+
+    const refresh = async () => {
+        if (!fetchItems) return;
+        listEl.innerHTML = '<span class="text-secondary">Loading...</span>';
+        resultEl.style.display = 'none';
+        renderItems(await fetchItems());
+    };
+
+    if (fetchItems) refresh();
+    else renderItems(staticItems);
+
+    document.getElementById(`am_refresh_${uid}`)?.addEventListener('click', refresh);
+
+    allBtn.addEventListener('click', () => {
+        const chks = listEl.querySelectorAll<HTMLInputElement>(`.am-chk-${uid}`);
+        const allChecked = Array.from(chks).every(c => c.checked);
+        chks.forEach(c => c.checked = !allChecked);
+    });
+
+    runBtn.addEventListener('click', async () => {
+        const values = Array.from(listEl.querySelectorAll<HTMLInputElement>(`.am-chk-${uid}`))
+            .filter(c => c.checked).map(c => c.value);
+        if (values.length === 0) { CAlert.Info('No items selected'); return; }
+        if (hasMessage && !msgEl?.value.trim()) { CAlert.Info('Please enter a message'); return; }
+
+        runBtn.setAttribute('disabled', '');
+        resultEl.style.display = '';
+        resultEl.textContent = 'Processing...';
+        const { result, refresh: doRefresh } = await onRun(values, msgEl?.value.trim());
+        resultEl.textContent = result;
+        runBtn.removeAttribute('disabled');
+        if (doRefresh) refresh();
+    });
+}
+
+function openVcsModal(action: 'add' | 'revert' | 'commit', path: string) {
+    const statusColor = (s: string) => s === 'M' ? 'warning' : s === 'A' ? 'success' : s === 'D' ? 'danger' : 'secondary';
+    const title = action === 'commit' ? 'Commit & Push' : action === 'revert' ? 'Revert' : 'Add';
+    const runLabel = action === 'commit' ? 'Commit & Push' : action === 'revert' ? 'Revert' : 'Add';
+    const runClass = action === 'commit' ? 'btn-success' : action === 'revert' ? 'btn-warning' : 'btn-info';
+    openActionModal(
+        title,
+        runLabel,
+        runClass,
+        async (files, message) => {
+            const param: any = { action, path, files };
+            if (action === 'commit') param.message = message;
+            const res = await CFecth.Exe(CPath.WebRootUrl() + "File/VCS", param, "json") as any;
+            if (res.ok) FolderCD(window["g_path"]);
+            return { result: res.msg || (res.ok ? 'Done' : 'Failed'), refresh: res.ok };
+        },
+        action === 'commit',
+        async () => {
+            const res = await CFecth.Exe(CPath.WebRootUrl() + "File/VCS", { action: "status", path }, "json") as any;
+            if (!res.ok) return [];
+            const items = res.items as {status: string, file: string}[];
+            const filtered = action === 'add' ? items.filter(i => i.status === '?') : items;
+            return filtered.map(i => ({ badge: i.status, badgeClass: statusColor(i.status), label: i.file, value: i.file, checked: true }));
+        }
+    );
+}
+
+async function openVcsDiff(filePath: string) {
+    let res: any;
+    try {
+        res = await CFecth.Exe(CPath.WebRootUrl() + "File/VCS", { action: "diff", path: filePath }, "json");
+    } catch (e) {
+        CAlert.Info("Diff request failed"); return;
+    }
+    if (!res?.ok) { CAlert.Info(res?.msg || "Diff failed"); return; }
+
+    // 라인번호 td가 position:absolute라 스크롤 영역 안에 기준점(position:relative)이 필요.
+    // 없으면 세로 스크롤 시 코드만 움직이고 라인번호가 어긋남. 1회만 주입.
+    if (!document.getElementById("vcs-diff-style")) {
+        const st = document.createElement("style");
+        st.id = "vcs-diff-style";
+        st.textContent = "#vcs-diff-view .d2h-code-wrapper{position:relative;}";
+        document.head.appendChild(st);
+    }
+
+    const modal = new CModal();
+    modal.SetHeader(`Diff: ${filePath.replace(/\/+$/, '').split('/').pop() || filePath}`);
+    modal.SetTitle(CModal.eTitle.TextClose);
+    modal.SetBody(`<div id="vcs-diff-view"></div>`);
+    modal.SetSize(860, 580);
+    modal.Open(CModal.ePos.Center);
+
+    setTimeout(() => {
+        const el = document.getElementById("vcs-diff-view");
+        if (!el) return;
+        const D2H = (window as any).Diff2HtmlUI;
+        if (!D2H) { el.textContent = "diff2html not loaded"; return; }
+        const cfg = { drawFileList: false, matching: "lines", outputFormat: "line-by-line", highlight: false, stickyFileHeaders: false };
+        new D2H(el, res.diff, cfg).draw();
+    }, 80);
+}
+window["openVcsDiff"] = openVcsDiff;
+
+function openDeleteModal() {
+    const dirList = (window["g_dirList"] as Array<{file:boolean, name:string, hidden?:boolean}>) ?? [];
+    openActionModal(
+        'Delete',
+        'Delete',
+        'btn-danger',
+        async (names) => {
+            const lines: string[] = [];
+            for (const name of names) {
+                const param: any = { data: window["g_path"] + name };
+                if (RootPath) param.RootPath = RootPath;
+                const res = await CFecth.Exe(CPath.WebRootUrl() + "File/Delete", param, "json") as any;
+                lines.push(`${res.ok ? '✓' : '✗'} ${name}`);
+            }
+            FolderCD(window["g_path"]);
+            return { result: lines.join('\n') };
+        },
+        false,
+        undefined,
+        dirList
+            .filter(fl => !fl.hidden)
+            .map(fl => ({ icon: fl.file ? 'bi-file' : 'bi-folder-fill', label: fl.name, value: fl.name, checked: false }))
+    );
+}
 
 function CreateFolder()
 {
@@ -1882,29 +2207,6 @@ function FileShare() {
 }
 window["FileShare"] = FileShare;
 
-// async function Upload()
-// {
-//     CAlert.E("막아둠");return;
-//     var input=document.createElement('input');
-//     input.type="file";
-//     input.accept=".json";
-//     input.click();
-
-//     await new Promise<void>((resolve) => {
-//         input.onchange=async(e)=>{
-//             var fi=e.target as HTMLInputElement;
-//             let _str = await CUtil.FileToStr(fi.files[0]) as string|object;
-           
-//             resolve();
-//         };
-//         //파일 선택 취소
-//         input.addEventListener('cancel', () => {
-//             resolve();
-//         });
-//     });
-// }
-
-// window["Upload"]=Upload;
 
 
 CDOM.ID("uploadBtn").onchange=async (e)=>{
@@ -1937,227 +2239,7 @@ CDOM.ID("uploadBtn").onchange=async (e)=>{
     Redirection(true);
     
 };
-// function SoundAllAdd()
-// {
-//     for(let fl of window["g_dirList"] as Array<{hidden:boolean,file:boolean,name:string,ext:string}>)
-//     {
-//         if(fl.ext=="mp3" || fl.ext=="ogg")
-//         {
-//             g_soundList.fullPath.push(window["g_down"]+window["g_path"]+fl.name);
-//             g_soundList.name.push(fl.name);
-            
-//         }
-//     }
-//     CAlert.Info("전곡 추가");
-//     SoundListSave();
-// }
-// window["SoundAllAdd"]=SoundAllAdd;
-let gRamdomList=[];
-function SoundListRefresh()
-{
-    gRamdomList=[];
-    if(g_soundList==null)   return;
 
-    var musicStr="";
-    CDOM.ID("SoundList").innerHTML="";
-
-    
-
-
-    for(let i=0;i<g_soundList.fullPath.length;++i)
-    {
-        //let full=window["g_down"]+g_soundList.fullPath[i];
-        
-
-        musicStr+="<ul class='list-group'>";
-		musicStr+="<li class='list-group-item list-group-item-action' id='Sound"+i+"' onclick='SoundPlay("+i+")'>"+
-			"<i class='bi bi-file-music'></i> <font color='red'>"+g_soundList.name[i]+
-            "</font><i class='bi bi-file-earmark-x float-right' onclick='SoundDelete("+i+")'></i></li>";
-		musicStr+="</ul>";
-    }
-    CDOM.ID("SoundList").innerHTML=musicStr;
-}
-window["SoundListRefresh"]=SoundListRefresh;
-SoundListRefresh();
-
-function SoundListSave()
-{
-    CStorage.Set("SoundList",JSON.stringify(g_soundList));
-    SoundListRefresh();
-}
-window["SoundListSave"]=SoundListSave;
-
-
-var g_lastPlay=0;
-function SoundPlay(_off)
-{
-    if(g_soundList.fullPath.length==0)  return;
-    var MAudio=document.getElementById('MAudio') as HTMLAudioElement;
-    if(_off==-1)
-    {
-        CDOM.ID("Sound"+g_lastPlay).className="list-group-item list-group-item-action";
-        g_lastPlay=0;
-        CDOM.ID("SoundNowPlaying").textContent="";
-        return;
-    }
-    else
-    {
-        CDOM.ID("Sound"+g_lastPlay).className="list-group-item list-group-item-action";
-        g_lastPlay=_off;
-        CDOM.ID("Sound"+_off).className="list-group-item list-group-item-action list-group-item-dark";
-    }
-
-    // MAudio.src=g_soundList.fullPath[_off];
-    // if(/iphone|ipad|ipod/i.test(navigator.userAgent)) MAudio.load();
-    // MAudio.play()
-    // .then(_ => {
-    //     // 현재 재생곡 UI 표시
-    //     CDOM.ID("SoundNowPlaying").textContent="\u266B " + g_soundList.name[_off];
-    //     // MediaSession (잠금화면 곡 정보)
-    //     if('mediaSession' in navigator) {
-    //         navigator.mediaSession.metadata = new MediaMetadata({
-    //             title: g_soundList.name[_off],
-    //             artwork: [
-    //                 { src: "512x512.png", sizes: "512x512", type: "image/png" }
-    //             ]
-    //         });
-    //         navigator.mediaSession.playbackState = 'playing';
-    //         if('setPositionState' in navigator.mediaSession) {
-    //             try { navigator.mediaSession.setPositionState({ duration: MAudio.duration, playbackRate: MAudio.playbackRate, position: MAudio.currentTime }); } catch(e) {}
-    //         }
-    //     }
-    // })
-    // .catch(e => console.warn("SoundPlay failed:", e));
-    // 변경 후
-    const doPlay = () => {
-        MAudio.play()
-        .then(_ => {
-            CDOM.ID("SoundNowPlaying").textContent="\u266B " + g_soundList.name[_off];
-            if('mediaSession' in navigator) {
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: g_soundList.name[_off],
-                    artwork: [{ src: "512x512.png", sizes: "512x512", type: "image/png" }]
-                });
-                navigator.mediaSession.playbackState = 'playing';
-                if('setPositionState' in navigator.mediaSession) {
-                    try { navigator.mediaSession.setPositionState({ duration: MAudio.duration, playbackRate: MAudio.playbackRate, position: MAudio.currentTime }); } catch(e) {}
-                }
-            }
-        })
-        .catch(e => console.warn("SoundPlay failed:", e));
-    };
-
-    if ('audioSession' in navigator) {
-        (navigator as any).audioSession.type = 'playback';
-    }
-    MAudio.src=g_soundList.fullPath[_off];
-    doPlay();
-}
-window["SoundPlay"]=SoundPlay;
-
-// MediaSession 핸들러 (1회 등록)
-if('mediaSession' in navigator) {
-    var MAudioRef=document.getElementById('MAudio') as HTMLAudioElement;
-    navigator.mediaSession.setActionHandler("play", () => { MAudioRef.play(); });
-    navigator.mediaSession.setActionHandler("pause", () => { MAudioRef.pause(); });
-    navigator.mediaSession.setActionHandler("nexttrack", () => { SoundEnd(); });
-    navigator.mediaSession.setActionHandler("previoustrack", () => {
-        let prev = g_lastPlay - 1;
-        if(prev < 0) prev = g_soundList.fullPath.length - 1;
-        SoundPlay(prev);
-    });
-    MAudioRef.addEventListener('play', () => { navigator.mediaSession.playbackState = 'playing'; });
-    MAudioRef.addEventListener('pause', () => { navigator.mediaSession.playbackState = 'paused'; });
-    MAudioRef.addEventListener('ended', () => { SoundEnd(); });
-}
-
-function SoundDelete(_off)
-{
-    var MAudio=document.getElementById('MAudio') as HTMLAudioElement;
-    g_soundList.fullPath.splice(_off,1);
-    g_soundList.name.splice(_off,1);
-    SoundListSave();
-    MAudio.pause();
-}
-window["SoundDelete"]=SoundDelete;
-
-
-function SoundEnd()
-{
-    if((CDOM.ID("SoundRandom_chk") as HTMLInputElement).checked)
-    {
-        while(g_soundList.fullPath.length>0)
-        {
-            if(gRamdomList.length==0)
-            {
-                gRamdomList=[...g_soundList.fullPath];
-            }
-
-            let sel=Math.trunc(Math.random()*gRamdomList.length);
-
-            let selKey=gRamdomList.splice(sel,1)[0];
-            for(let i=0;i<g_soundList.fullPath.length;++i)
-            {
-                if(g_soundList.fullPath[i]==selKey)
-                {
-                    SoundPlay(i);
-                    return;
-                }
-            }
-        }
-        
-
-        //SoundPlay(Math.trunc(Math.random()*g_soundList.fullPath.length));
-    }
-    else
-    {
-        ;
-        if(g_soundList.fullPath.length<=g_lastPlay+1)
-            SoundPlay(0);
-        else
-            SoundPlay(g_lastPlay+1);
-        
-    }
-}
-window["SoundEnd"]=SoundEnd;
-function SoundAllDelate()
-{
-    gRamdomList=[];
-    g_soundList.fullPath=[];
-    g_soundList.name=[];
-    SoundListSave();
-}
-window["SoundAllDelate"]=SoundAllDelate;
-
-
-// function SoundShuffle()
-// {
-// 	//g_soundList.fullPath.sort(() => Math.random() - 0.5); 
-//     var fArr=[];
-//     var nArr=[];
-//     while(g_soundList.fullPath.length>0)
-//     {
-//         let off=Math.trunc(g_soundList.fullPath.length*Math.random());
-//         fArr.push(g_soundList.fullPath.splice(off,1)[0]);
-//         nArr.push(g_soundList.name.splice(off,1)[0]);
-//     }
-//     g_soundList.fullPath=fArr;
-//     g_soundList.name=nArr;
-
-// 	SoundListSave();
-// }
-// window["SoundShuffle"]=SoundShuffle;
-function SoundListDupChk(_soundKey : string)
-{
-    for(let each0 of g_soundList.fullPath)
-    {
-        if(each0==_soundKey)    return true;
-    }
-
-    return false;
-   
-}
-window["SoundListPush"]=SoundListDupChk;
 function SoundPlayListSave()
 {
     let confirm=new CConfirm();
@@ -2165,7 +2247,7 @@ function SoundPlayListSave()
     confirm.SetConfirm(CConfirm.eConfirm.YesNo,[
     ()=> {
         g_fun="SoundPlayListSave";
-			g_data=JSON.stringify(g_soundList);
+			g_data=JSON.stringify({name:g_musicJBox.Names,fullPath:g_musicJBox.Paths});
             g_option=CDOM.IDValue("soundListSave");
 			Redirection(false);
         
@@ -2176,72 +2258,17 @@ function SoundPlayListSave()
     ],["Yes","No"])
     confirm.Open();
 
-    // new CJBox(CJBox.Df.Confirm, {
-	// 	content:'저장할 파일명을 입력하세요!<br><input type="text" id="soundListSave" class="form-control form-control-sm" value="basic">',
-	// 	confirmButton: '예',
-	// 	cancelButton: '아니오',
-	// 	confirm : function () 
-	// 	{
-	// 		//Sound("SoundListSave"+g_path+"/"+$("#soundListSave").val());
-			
-	// 		g_fun="SoundPlayListSave";
-	// 		g_data=JSON.stringify(g_soundList);
-    //         g_option=CDOM.IDValue("soundListSave");
-	// 		Redirection(false);
-	// 	},
-	// 	cancel : function () {
-			
-	// 	},
-	// 	onOpen : function(){
-	// 		g_musicJBox.close();
-	// 	}
-	// }).open();
+  
 }
 window["SoundPlayListSave"]=SoundPlayListSave;
 
 
 
 
-function SoundEachCopy()
-{
-    let confirm=new CConfirm();
-    confirm.SetBody('Copy the list?">');
-    confirm.SetConfirm(CConfirm.eConfirm.YesNo,[
-    ()=> {
-        g_fun="SoundEachCopy";
-            g_data=JSON.stringify(g_soundList);
-            Redirection(false);
-        
-    },
-    ()=> {
-        g_musicJBox.Hide();
-    },
-    ],["Yes","No"])
-    confirm.Open();
-
-    // new CJBox(CJBox.Df.Confirm, {
-	// 	content:'리스트를 복사하겠습니까?">',
-	// 	confirmButton: '예',
-	// 	cancelButton: '아니오',
-	// 	confirm : function () 
-	// 	{
-	// 		g_fun="SoundEachCopy";
-    //         g_data=JSON.stringify(g_soundList);
-    //         Redirection(false);
-	// 	},
-
-	// 	onOpen : function(){
-	// 		g_musicJBox.Hide();
-	// 	}
-	// }).open();
-
-    
-}
-window["SoundEachCopy"]=SoundEachCopy;
 function RefreshOpen()
 {
     
-    for(let fl of window["g_dirList"] as Array<{hidden:boolean,file:boolean,name:string,ext:string,open:boolean,index:number}>)
+    for(let fl of window["g_dirList"] as Array<{hidden:boolean,file:boolean,name:string,ext:string,open:boolean,index:number,Status?:string}>)
     {
         if(fl.index==null)  continue;
         if(fl.open==false)
@@ -2257,7 +2284,7 @@ function RefreshOpen()
 window["RefreshOpen"]=RefreshOpen;
 function NextPhoto()
 {
-    for(let fl of window["g_dirList"] as Array<{hidden:boolean,file:boolean,name:string,ext:string,open:boolean,index:number}>)
+    for(let fl of window["g_dirList"] as Array<{hidden:boolean,file:boolean,name:string,ext:string,open:boolean,index:number,Status?:string}>)
     {
         if(fl.open==false)
         {
@@ -2299,313 +2326,6 @@ let buf=CFile.Load("../../README-"+lan+".md").then(async ()=>{
 
 // CDOM.ID("main").innerHTML="";
 //     CDOM.ID("main").append(await CUtilWeb.MDReader("../../README.md"));
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
