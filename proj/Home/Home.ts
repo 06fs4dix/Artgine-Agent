@@ -3,8 +3,6 @@ import "../../Artgine/artgine/artgine.js"
 
 //Class
 import {CClass} from "../../Artgine/artgine/basic/CClass.js";
-import { MountDownloadTab } from "./Downloads/DownloadTab.js";
-CClass.Push(MountDownloadTab);
 //Atelier
 import {CPreferences} from "../../Artgine/artgine/basic/CPreferences.js";
 var gPF = new CPreferences();
