@@ -3,6 +3,8 @@ import "../../Artgine/artgine/artgine.js"
 
 //Class
 import {CClass} from "../../Artgine/artgine/basic/CClass.js";
+import { MountDownloadTab } from "./Downloads/DownloadTab.js";
+CClass.Push(MountDownloadTab);
 //Atelier
 import {CPreferences} from "../../Artgine/artgine/basic/CPreferences.js";
 var gPF = new CPreferences();
@@ -20,7 +22,7 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mqazrwhz_2";
+gPF.mVersion = "mqc4fxwb_4";
 
 import {CAtelier} from "../../Artgine/artgine/app/CAtelier.js";
 
@@ -2326,6 +2328,8 @@ let buf=CFile.Load("../../README-"+lan+".md").then(async ()=>{
 
 // CDOM.ID("main").innerHTML="";
 //     CDOM.ID("main").append(await CUtilWeb.MDReader("../../README.md"));
+
+
 
 
 

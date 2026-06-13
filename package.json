@@ -38,6 +38,7 @@
     "raw-body": "^3.0.0",
 	"image-size": "^2.0.2",
     "typescript": "^5.8.2",
+	"electron": "^35.2.1",
     "ws": "^8.18.1"
   },
   "description": ""
