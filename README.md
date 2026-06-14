@@ -4,9 +4,8 @@ Artgine-Agent is a web-based agent interface built on the [Artgine](https://gith
 
 ## Usage
 
-[Artgine Tool](https://06fs4dix.github.io/Artgine/help/artgine-agent-tutorial.html)
+[Artgine Agent](https://06fs4dix.github.io/Artgine/help/artgine-agent-tutorial.html)
 
-[Artgine Agent(Home)](https://06fs4dix.github.io/Artgine/help/electron-ui-mode-guide.html)
 
 ## Features
 

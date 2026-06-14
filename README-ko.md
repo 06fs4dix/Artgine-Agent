@@ -3,9 +3,7 @@ Artgine-Agent는 [Artgine](https://github.com/06fs4dix/Artgine) 엔진 위에서
 > Language **[English](README.md)**
 ## 사용법
 
-[Artgine Tool](https://06fs4dix.github.io/Artgine/help/artgine-agent-tutorial.html)
-
-[Artgine Agent(Home)](https://06fs4dix.github.io/Artgine/help/electron-ui-mode-guide.html)
+[Artgine Agent](https://06fs4dix.github.io/Artgine/help/artgine-agent-tutorial.html)
 
 ## 기능
 
