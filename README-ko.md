@@ -13,6 +13,7 @@ Artgine-Agent는 [Artgine](https://github.com/06fs4dix/Artgine) 엔진 위에서
 - 폴더 이동, 이미지 보기, 오디오/비디오 재생
 - `.ts` `.js` `.html` `.json` `.txt` 파일을 Monaco 에디터로 편집
 - 편집한 파일 서버에 업로드/저장
+- Git 또는 SVN이 설치되어 있으면 파일 옆에 버전 관리 상태 배지가 표시됩니다: `M` (수정됨) / `D` (삭제됨) / `A` (추가됨) / `?` (추적 안 됨)
 
 ### AI 탭 `F4`
 iframe 기반 패널에서 AI 채팅과 터미널 세션을 관리합니다.
@@ -61,6 +62,8 @@ iframe 기반 패널에서 AI 채팅과 터미널 세션을 관리합니다.
 | `F2` | 파일 검색 창 열기 |
 | `F3` | 파일 브라우저 탭으로 전환 및 루트 폴더(`/`) 이동 |
 | `F4` | AI 어시스턴트 탭으로 전환 |
+| `F1` | File Manager 모달 열기 (파일 탭에서 사용) |
+| `Esc` | 열려 있는 모달 닫기 |
 
 #### 2. AI & 터미널 화면용 단축키
 | 키 | 동작 | 조건/상황 |
@@ -129,6 +132,8 @@ Artgine 서버에서 다음 라우터로 동작합니다.
 
 ## 시작하기
 
+`start.bat` (Windows) 또는 `start.sh` (Linux)를 실행하거나, 아래 명령어로 직접 시작할 수 있습니다.
+
 ```bash
 git clone --recursive https://github.com/06fs4dix/Artgine-Agent.git
 cd Artgine-Agent
@@ -139,3 +144,5 @@ npm start
 Artgine 앱에서 `projectPath`를 `proj/Home`으로 설정하고 **Run**을 클릭하세요.
 
 > **웹 서버만 실행** — `npm run start_web [포트]` (기본값: 8050)
+
+> **기본 비밀번호**: `artgine`

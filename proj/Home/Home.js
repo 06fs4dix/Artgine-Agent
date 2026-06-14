@@ -1,7 +1,4 @@
 import "../../Artgine/artgine/artgine.js";
-import { CClass } from "../../Artgine/artgine/basic/CClass.js";
-import { MountDownloadTab } from "./Downloads/DownloadTab.js";
-CClass.Push(MountDownloadTab);
 import { CPreferences } from "../../Artgine/artgine/basic/CPreferences.js";
 var gPF = new CPreferences();
 gPF.mTargetWidth = 0;

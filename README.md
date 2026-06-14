@@ -15,6 +15,7 @@ Browse and manage files on the server.
 - Navigate folders, view images, play audio/video
 - Edit `.ts` `.js` `.html` `.json` `.txt` files with Monaco editor
 - Upload and save edited files back to the server
+- If Git or SVN is installed, version control status badges appear alongside files: `M` (modified) / `D` (deleted) / `A` (added) / `?` (untracked)
 
 ### AI tab `F4`
 AI chat and terminal sessions in an iframe-based panel.
@@ -63,6 +64,8 @@ AI chat and terminal sessions in an iframe-based panel.
 | `F2` | Open file search window |
 | `F3` | Switch to Files tab and go to root directory (`/`) |
 | `F4` | Switch to AI Assistant tab |
+| `F1` | Open File Manager modal (Files tab) |
+| `Esc` | Close the currently open modal |
 
 #### 2. AI & Terminal Screen Shortcuts
 | Key | Action | Condition / Context |
@@ -131,6 +134,8 @@ Runs on the Artgine server with the following routers:
 
 ## Getting Started
 
+Run `start.bat` (Windows) or `start.sh` (Linux), or use the commands below:
+
 ```bash
 git clone --recursive https://github.com/06fs4dix/Artgine-Agent.git
 cd Artgine-Agent
@@ -141,3 +146,5 @@ npm start
 Set `projectPath` to `proj/Home` in the Artgine app, then click **Run**.
 
 > **Web-only mode** — `npm run start_web [port]` (default: 8050)
+
+> **Default password**: `artgine`
