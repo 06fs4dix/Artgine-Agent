@@ -8,17 +8,14 @@ const LS_LAST_SID = 'ai.lastSessionId';
 const LS_PROVIDER = 'ai.provider';
 const LS_MODEL = 'ai.model';
 const LS_TOKEN = 'artgine.token';
-import { CFecth } from "../../../Artgine/artgine/network/CFecth.js";
-import { CPath } from "../../../Artgine/artgine/basic/CPath.js";
+import { CFecth } from "../../../artgine/network/CFecth.js";
+import { CPath } from "../../../artgine/basic/CPath.js";
 let authToken = localStorage.getItem(LS_TOKEN) || '';
 function isStandaloneChat() {
     return window.parent === window;
 }
 function authedFetch(input, init) {
-    const headers = new Headers(init?.headers || {});
-    if (authToken)
-        headers.set('x-ai-token', authToken);
-    return fetch(input, { ...init, headers });
+    return fetch(input, init);
 }
 function clearAuth() {
     authToken = '';
@@ -213,7 +210,7 @@ function isImagePath(p) {
 }
 function attachmentUrl(sid, relPath, bust) {
     const t = bust ?? Date.now();
-    return `${CPath.WebRootUrl()}ai/chat/workspace?id=${encodeURIComponent(sid)}&path=${relPath}&t=${t}&token=${encodeURIComponent(authToken)}`;
+    return `${CPath.WebRootUrl()}ai/chat/workspace?id=${encodeURIComponent(sid)}&path=${relPath}&t=${t}`;
 }
 async function fetchProviders() {
     try {
@@ -568,7 +565,7 @@ function connectWs() {
         ws = null;
     }
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    ws = new WebSocket(`${CPath.WebRootUrl().replace(/^http/, 'ws')}ai/chat/ws?token=${encodeURIComponent(authToken)}`);
+    ws = new WebSocket(`${CPath.WebRootUrl().replace(/^http/, 'ws')}ai/chat/ws`);
     ws.addEventListener('open', () => {
         setStatus('connected', 'text-bg-success');
         ws.send(JSON.stringify({ type: 'join', sessionId: currentSid }));
@@ -644,7 +641,7 @@ async function init() {
     }
     try {
         const j = await CFecth.Exe(CPath.WebRootUrl() + "auth/check", { token: authToken }, "json");
-        if (j.ok) {
+        if (j.authed) {
             hideLoginOverlay();
             hideComposerLogin();
             bootChat();
