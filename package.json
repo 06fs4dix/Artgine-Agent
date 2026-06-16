@@ -39,6 +39,7 @@
 	"image-size": "^2.0.2",
     "typescript": "^5.8.2",
 	"electron": "^35.2.1",
+	"playwright": "^1.60.0",
     "ws": "^8.18.1"
   },
   "description": ""
