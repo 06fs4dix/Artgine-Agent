@@ -1,6 +1,5 @@
 import { CServerMain } from "../../Artgine/artgine/network/CServerMain.js";
 import { CFileServer } from "../../Artgine/artgine/server/CFileServer.js";
-import { COAuthServer } from "../../Artgine/artgine/server/COAuthServer.js";
 import { CTerminalRouter } from "../../Artgine/artgine/server/CTerminalRouter.js";
 import { CAIChatRouter } from "../../Artgine/artgine/server/CAIChatRouter.js";
 import { CPlaywrightRouter } from "../../Artgine/artgine/server/CPlaywrightRouter.js";

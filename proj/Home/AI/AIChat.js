@@ -8,8 +8,8 @@ const LS_LAST_SID = 'ai.lastSessionId';
 const LS_PROVIDER = 'ai.provider';
 const LS_MODEL = 'ai.model';
 const LS_TOKEN = 'artgine.token';
-import { CFecth } from "../../../artgine/network/CFecth.js";
-import { CPath } from "../../../artgine/basic/CPath.js";
+import { CFecth } from "../../../Artgine/artgine/network/CFecth.js";
+import { CPath } from "../../../Artgine/artgine/basic/CPath.js";
 let authToken = localStorage.getItem(LS_TOKEN) || '';
 function isStandaloneChat() {
     return window.parent === window;

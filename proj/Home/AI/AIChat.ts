@@ -43,8 +43,8 @@ const LS_MODEL    = 'ai.model';
 // LS_SIDEBAR removed (sidebar moved to Home.ts)
 const LS_TOKEN    = 'artgine.token';
 
-import { CFecth } from "../../../artgine/network/CFecth.js";
-import { CPath } from "../../../artgine/basic/CPath.js";
+import { CFecth } from "../../../Artgine/artgine/network/CFecth.js";
+import { CPath } from "../../../Artgine/artgine/basic/CPath.js";
 
 // ---- auth ----
 let authToken: string = localStorage.getItem(LS_TOKEN) || '';

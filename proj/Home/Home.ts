@@ -1,10 +1,11 @@
 //Version
-import "../../artgine/artgine.js"
+import "../../Artgine/artgine/artgine.js"
 
 //Class
-import {CClass} from "../../artgine/basic/CClass.js";
+import {CClass} from "../../Artgine/artgine/basic/CClass.js";
+
 //Atelier
-import {CPreferences} from "../../artgine/basic/CPreferences.js";
+import {CPreferences} from "../../Artgine/artgine/basic/CPreferences.js";
 var gPF = new CPreferences();
 gPF.mTargetWidth = 0;
 gPF.mTargetHeight = 0;
@@ -20,32 +21,32 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mqgmxeda_3";
+gPF.mVersion = "mqi5163s_4";
 
-import {CAtelier} from "../../artgine/app/CAtelier.js";
+import {CAtelier} from "../../Artgine/artgine/app/CAtelier.js";
 
-import {CPlugin} from "../../artgine/util/CPlugin.js";
+import {CPlugin} from "../../Artgine/artgine/util/CPlugin.js";
 var gAtl = new CAtelier();
 gAtl.mPF = gPF;
 await gAtl.Init([],"");
 //The content above this line is automatically set by the program. Do not modify.⬆✋🚫⬆☠️💥🔥
 
 //EntryPoint
-import {CObject} from "../../artgine/basic/CObject.js"
-import { CConfirm, CModal } from "../../artgine/basic/CModal.js";
-import { CUtil } from "../../artgine/basic/CUtil.js";
-import { CUtilWeb } from "../../artgine/util/CUtilWeb.js";
-import { CStorage } from "../../artgine/system/CStorage.js";
-import { CAlert } from "../../artgine/basic/CAlert.js";
-import { CDOM } from "../../artgine/basic/CDOM.js";
-import { CFecth } from "../../artgine/network/CFecth.js";
-import { CPath } from "../../artgine/basic/CPath.js";
-import { CFileViewer, CMDViewer, CSheetViewer, CModalStackMsg, CModalMusic } from "../../artgine/util/CModalUtil.js";
-import { CFile } from "../../artgine/system/CFile.js";
-import { CWebSocket } from '../../artgine/network/CWebSocket.js';
-import { CPWA } from '../../artgine/system/CPWA.js';
-import { Bootstrap } from "../../artgine/basic/Bootstrap.js";
-import { CTooltip } from "../../artgine/util/CTooltip.js";
+import {CObject} from "../../Artgine/artgine/basic/CObject.js"
+import { CConfirm, CModal } from "../../Artgine/artgine/basic/CModal.js";
+import { CUtil } from "../../Artgine/artgine/basic/CUtil.js";
+import { CUtilWeb } from "../../Artgine/artgine/util/CUtilWeb.js";
+import { CStorage } from "../../Artgine/artgine/system/CStorage.js";
+import { CAlert } from "../../Artgine/artgine/basic/CAlert.js";
+import { CDOM } from "../../Artgine/artgine/basic/CDOM.js";
+import { CFecth } from "../../Artgine/artgine/network/CFecth.js";
+import { CPath } from "../../Artgine/artgine/basic/CPath.js";
+import { CFileViewer, CMDViewer, CSheetViewer, CModalStackMsg, CModalMusic } from "../../Artgine/artgine/util/CModalUtil.js";
+import { CFile } from "../../Artgine/artgine/system/CFile.js";
+import { CWebSocket } from '../../Artgine/artgine/network/CWebSocket.js';
+import { CPWA } from '../../Artgine/artgine/system/CPWA.js';
+import { Bootstrap } from "../../Artgine/artgine/basic/Bootstrap.js";
+import { CTooltip } from "../../Artgine/artgine/util/CTooltip.js";
 
 
 // let mdModal=new CModal("test");
@@ -2679,6 +2680,8 @@ let buf=CFile.Load("../../README-"+lan+".md").then(async ()=>{
 
 // CDOM.ID("main").innerHTML="";
 //     CDOM.ID("main").append(await CUtilWeb.MDReader("../../README.md"));
+
+
 
 
 

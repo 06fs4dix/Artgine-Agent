@@ -1,5 +1,5 @@
-import { CFecth } from "../../../artgine/network/CFecth.js";
-import { CPath } from "../../../artgine/basic/CPath.js";
+import { CFecth } from "../../../Artgine/artgine/network/CFecth.js";
+import { CPath } from "../../../Artgine/artgine/basic/CPath.js";
 const LS_TOKEN = 'artgine.token';
 const params = new URLSearchParams(location.search);
 const SESSION_ID = params.get('session') || '';
