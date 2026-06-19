@@ -18,7 +18,7 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mqjg1bij_4";
+gPF.mVersion = "mqky7vyz_4";
 import { CAtelier } from "../../Artgine/artgine/app/CAtelier.js";
 var gAtl = new CAtelier();
 gAtl.mPF = gPF;
@@ -406,16 +406,12 @@ aiNewChatBtn.addEventListener('click', () => chatStartNew());
 function chatStartNew(initialWorkingDir) {
     const container = document.createElement('div');
     container.innerHTML = `
-        <p class="fw-semibold mb-3">옵션</p>
+        <p class="fw-semibold mb-3">New Chat</p>
         <div class="mb-2">
             <label class="form-label small text-secondary mb-1">Working Directory</label>
             <input id="chat-opt-workingDir" type="text" class="form-control form-control-sm" placeholder="e.g. D:/MyProject" autocomplete="off">
         </div>
         <div class="mb-3 d-flex gap-4">
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="chat-opt-allow" checked>
-                <label class="form-check-label small text-secondary" for="chat-opt-allow">Allow working dir write</label>
-            </div>
             <div class="form-check">
                 <input class="form-check-input" type="checkbox" id="chat-opt-mcp">
                 <label class="form-check-label small text-secondary" for="chat-opt-mcp">MCP</label>
@@ -434,7 +430,6 @@ function chatStartNew(initialWorkingDir) {
     modal.SetZIndex(CModal.eSort.Top);
     modal.Open(CModal.ePos.Center);
     setTimeout(() => {
-        const allowCheck = container.querySelector('#chat-opt-allow');
         const mcpCheck = container.querySelector('#chat-opt-mcp');
         const mdcopyCheck = container.querySelector('#chat-opt-mdcopy');
         const workingDirInput = container.querySelector('#chat-opt-workingDir');
@@ -448,8 +443,6 @@ function chatStartNew(initialWorkingDir) {
                 params.set('mcp', '0');
             if (workingDir)
                 params.set('workingDir', workingDir);
-            if (allowCheck.checked)
-                params.set('allow', '1');
             if (mdcopyCheck.checked)
                 params.set('mdcopy', '1');
             pendingNewSid = sid;
@@ -496,13 +489,14 @@ async function termStartNew(_mode = 'cmd', initialWorkingDir) {
     }
     const container = document.createElement('div');
     container.innerHTML = `
-        <p class="fw-semibold mb-3">옵션</p>
+        <p class="fw-semibold mb-3">New Terminal</p>
         <div class="mb-3 d-flex gap-2 flex-wrap">
             <button class="term-mode-btn btn btn-sm btn-outline-secondary flex-fill" data-mode="cmd">cmd</button>
             <button class="term-mode-btn btn btn-sm btn-outline-secondary flex-fill" data-mode="claude">claude</button>
             <!-- <button class="term-mode-btn btn btn-sm btn-outline-secondary flex-fill" data-mode="gemini">gemini</button> -->
             <button class="term-mode-btn btn btn-sm btn-outline-secondary flex-fill" data-mode="codex">codex</button>
             <button class="term-mode-btn btn btn-sm btn-outline-secondary flex-fill" data-mode="antigravity">agy</button>
+            <button class="term-mode-btn btn btn-sm btn-outline-secondary flex-fill" data-mode="opencode">opencode</button>
         </div>
         <div class="mb-2">
             <label class="form-label small text-secondary mb-1">Key</label>
@@ -727,7 +721,7 @@ function termShowShareLink(port) {
 }
 function aiShowShareLink(sessionId, title) {
     const base = location.pathname.replace(/\/[^/]+$/, '');
-    showShareLinkModal('AI Chat Share Link', `Anyone with this link can view the chat: <strong>${aiEscapeHtml(title)}</strong>`, `${location.origin}${base}/AI/AIChat.html?session=${encodeURIComponent(sessionId)}`);
+    showShareLinkModal('AI Chat Share Link', `Anyone with this link can view the chat: <strong>${aiEscapeHtml(title)}</strong>`, `${location.origin}${base}/AI/AIChat.html?session=${encodeURIComponent(sessionId)}&share=1`);
 }
 function openSessionPopup(url, title, newWindow = false, winName = '_blank') {
     if (newWindow) {
@@ -864,7 +858,7 @@ async function schedRefresh() {
             item.style.cursor = 'pointer';
             item.innerHTML = `
                 <span class="d-flex flex-column align-items-center flex-shrink-0" style="min-width:2rem;">
-                    <span class="badge rounded-pill ${s.mode === 'none' ? 'bg-secondary' : s.mode === 'cmd' ? 'bg-info' : s.mode === 'claude' ? 'bg-warning text-dark' : s.mode === 'codex' ? 'bg-primary' : 'bg-danger'}" style="font-size:0.65rem;">${s.mode === 'antigravity' ? 'agy' : s.mode}</span>
+                    <span class="badge rounded-pill ${s.mode === 'none' ? 'bg-secondary' : s.mode === 'cmd' ? 'bg-info' : s.mode === 'claude' ? 'bg-warning text-dark' : s.mode === 'codex' ? 'bg-primary' : s.mode === 'opencode' ? 'bg-success' : 'bg-danger'}" style="font-size:0.65rem;">${s.mode === 'antigravity' ? 'agy' : s.mode}</span>
                     <span class="text-secondary" style="font-size:0.68rem;white-space:nowrap;">${schedIntervalStr(s)}</span>
                 </span>
                 <span class="flex-grow-1 min-w-0 d-flex flex-column" style="min-width:0;">
@@ -913,6 +907,7 @@ function schedOpenModal(existing) {
                 <!-- <button class="sched-mode-btn btn btn-sm btn-outline-secondary" data-mode="gemini">gemini</button> -->
                 <button class="sched-mode-btn btn btn-sm btn-outline-secondary" data-mode="codex">codex</button>
                 <button class="sched-mode-btn btn btn-sm btn-outline-secondary" data-mode="antigravity">agy</button>
+                <button class="sched-mode-btn btn btn-sm btn-outline-secondary" data-mode="opencode">opencode</button>
             </div>
         </div>
         <div class="mb-2">
@@ -1045,6 +1040,9 @@ window.addEventListener('message', (e) => {
     if (e.data?.type === 'ai-sessions-changed') {
         pendingNewSid = null;
         aiRefreshSessions();
+    }
+    if (e.data?.type === 'browser-sessions-changed') {
+        browserRefreshList();
     }
     if (e.data?.type === 'terminal-tab-key') {
         handleTabKey();
@@ -1404,7 +1402,7 @@ function browserShowShareLink(sessionId, url) {
 browserNewBtn.addEventListener('click', () => {
     const container = document.createElement('div');
     container.innerHTML = `
-        <p class="fw-semibold mb-3">새 브라우저 세션</p>
+        <p class="fw-semibold mb-3">New Browser Session</p>
         <div class="mb-2">
             <label class="form-label small text-secondary mb-1">URL</label>
             <input id="brow-url" type="text" class="form-control form-control-sm" placeholder="https://..." autocomplete="off">
