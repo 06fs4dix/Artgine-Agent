@@ -31,8 +31,9 @@ npm start
 ### AI 탭 `F4`
 AI 채팅과 터미널 세션을 iframe 기반 패널에서 관리합니다.
 
-- **Chat** — Claude, Codex, Antigravity 프로바이더를 지원하는 멀티 세션 AI 채팅. 세션 상태: 🔴 미연결 · 🟡 처리 중 · 🟢 대기 중.
-- **Terminal** — 최대 9개 동시 터미널 세션. 모드: `cmd`, `claude`, `codex`, `antigravity`. SUPER 모드(`F6`)로 에이전트 명령 자동 승인 가능 (활성화 시 입력창 테두리 빨간색).
+- **Chat** — Claude, Codex, Antigravity, OpenCode 프로바이더를 지원하는 멀티 세션 AI 채팅. 세션 상태: 🔴 미연결 · 🟡 처리 중 · 🟢 대기 중.
+- **Terminal** — 최대 9개 동시 터미널 세션. 모드: `cmd`, `claude`, `codex`, `antigravity`, `opencode`. SUPER 모드(`F6`)로 에이전트 명령 자동 승인 가능 (활성화 시 입력창 테두리 빨간색).
+- **Browser** — Playwright 원격 세션을 통한 웹 디버깅: 실시간 스크린샷 스트리밍, 콘솔/네트워크 로그 수집, 마우스·키보드 원격 제어, 읽기 전용 공유 링크 지원.
 - **Schedule** — 터미널 세션에 연결된 명령을 타이머 주기로 자동 반복 실행하는 스케줄러.
 
 ### 주요 단축키

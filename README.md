@@ -31,8 +31,9 @@ Browse and manage files on the server — navigate folders, view images, play au
 ### AI tab `F4`
 Manage AI chat and terminal sessions in an iframe-based panel.
 
-- **Chat** — Multi-session AI chat supporting Claude, Codex, and Antigravity providers. Sessions show status colors: 🔴 disconnected · 🟡 busy · 🟢 idle.
-- **Terminal** — Up to 9 concurrent terminal sessions. Modes: `cmd`, `claude`, `codex`, `antigravity`. Includes SUPER mode (`F6`) for auto-approving agent commands (input border turns red when active).
+- **Chat** — Multi-session AI chat supporting Claude, Codex, Antigravity, and OpenCode providers. Sessions show status colors: 🔴 disconnected · 🟡 busy · 🟢 idle.
+- **Terminal** — Up to 9 concurrent terminal sessions. Modes: `cmd`, `claude`, `codex`, `antigravity`, `opencode`. Includes SUPER mode (`F6`) for auto-approving agent commands (input border turns red when active).
+- **Browser** — Web debugging via remote Playwright sessions: live screenshot streaming, console/network log capture, mouse/keyboard remote control, and read-only share links.
 - **Schedule** — Register recurring commands that run automatically on a timer, attached to a terminal session.
 
 ### Key Shortcuts
