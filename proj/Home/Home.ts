@@ -22,7 +22,7 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mqky7vyz_4";
+gPF.mVersion = "mqlq39sx_4";
 
 import {CAtelier} from "../../Artgine/artgine/app/CAtelier.js";
 
@@ -72,6 +72,11 @@ CDOM.ID("install-btn").addEventListener("click",()=>{
 // CModal.Open() 직후엔 모달 본문 DOM이 아직 붙기 전이라, 내부 요소에 접근하려면
 // 한 틱 양보해야 한다. 이벤트 바인딩/포커스용 공통 지연(ms).
 const MODAL_DOM_DELAY = 100;
+const DEFAULT_AUTH_PASSWORD = 'artgine';
+
+function warnIfDefaultAuthPassword(pw: string) {
+    if (pw === DEFAULT_AUTH_PASSWORD) CAlert.E("Please change the default password.");
+}
 
 // ---- AI tab: session list ----
 // 토큰은 로그인 시 저장해두는 relog 자격증명일 뿐이며, 일반 요청 인증은
@@ -529,10 +534,6 @@ async function termStartNew(_mode: 'cmd' | 'claude' /* | 'gemini' */ | 'codex' |
         </div>
         <div class="mb-3 d-flex gap-4">
             <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="term-opt-allow">
-                <label class="form-check-label small text-secondary" for="term-opt-allow">Allow working dir write</label>
-            </div>
-            <div class="form-check">
                 <input class="form-check-input" type="checkbox" id="term-opt-mcp" checked>
                 <label class="form-check-label small text-secondary" for="term-opt-mcp">MCP</label>
             </div>
@@ -555,7 +556,6 @@ async function termStartNew(_mode: 'cmd' | 'claude' /* | 'gemini' */ | 'codex' |
         let selectedMode: string = _mode;
 
         const modeButtons = container.querySelectorAll<HTMLButtonElement>('.term-mode-btn');
-        const allowCheck  = container.querySelector<HTMLInputElement>('#term-opt-allow')!;
         const mcpCheck    = container.querySelector<HTMLInputElement>('#term-opt-mcp')!;
         const mdcopyCheck = container.querySelector<HTMLInputElement>('#term-opt-mdcopy')!;
 
@@ -565,8 +565,6 @@ async function termStartNew(_mode: 'cmd' | 'claude' /* | 'gemini' */ | 'codex' |
                 b.classList.toggle('btn-primary', b.dataset.mode === mode);
                 b.classList.toggle('btn-outline-secondary', b.dataset.mode !== mode);
             });
-            allowCheck.disabled = mode === 'cmd';
-            if (mode === 'cmd') allowCheck.checked = false;
         };
 
         modeButtons.forEach(b => b.addEventListener('click', () => updateModeUI(b.dataset.mode!)));
@@ -584,7 +582,6 @@ async function termStartNew(_mode: 'cmd' | 'claude' /* | 'gemini' */ | 'codex' |
             const params = new URLSearchParams({ mode: selectedMode });
             if (key)        params.set('key', key);
             if (workingDir) params.set('workingDir', workingDir);
-            if (allowCheck.checked) params.set('allow', '1');
             if (!mcpCheck.checked) params.set('mcp', '0');
             if (mdcopyCheck.checked) params.set('mdcopy', '1');
             modal.Close();
@@ -1179,6 +1176,10 @@ const aiSidebarToggleBtn = CDOM.ID("aiSidebarToggle") as HTMLButtonElement;
 // scroll:true를 같이 줘야 포커스 트랩이 완전히 꺼진다.
 const aiSidebarOffcanvas = new (window as any).bootstrap.Offcanvas(aiSidebarEl, { backdrop: false, scroll: true });
 
+function openAiSidebar() {
+    if (!aiSidebarEl.classList.contains('show')) aiSidebarOffcanvas.show();
+}
+
 // 백드롭 클릭/Esc 등 토글 버튼을 거치지 않는 닫힘에도 아이콘/저장값이 따라가도록 이벤트로 동기화
 aiSidebarEl.addEventListener('shown.bs.offcanvas', () => {
     aiSidebarToggleBtn.querySelector('i')!.className = 'bi bi-layout-sidebar-inset';
@@ -1191,7 +1192,7 @@ aiSidebarEl.addEventListener('hidden.bs.offcanvas', () => {
 
 // 첫 진입 시 슬라이드 인 애니메이션 없이 바로 펼쳐진 상태로 시작
 aiSidebarEl.style.transition = 'none';
-aiSidebarOffcanvas.show();
+openAiSidebar();
 requestAnimationFrame(() => { aiSidebarEl.style.transition = ''; });
 
 function toggleSidebar() {
@@ -1291,6 +1292,7 @@ async function aiDoAuth() {
             aiAuthOverlay.style.display = 'none';
             aiRefreshSessions();
             termRefreshSessions();
+            warnIfDefaultAuthPassword(pw);
         } else {
             aiAuthMsg.textContent = j.msg || 'Wrong password';
         }
@@ -1525,13 +1527,16 @@ function showAiTermSubtab() {
 }
 
 CDOM.ID("ai-tab").addEventListener("shown.bs.tab", () => {
+    const isFirstInit = !aiInited;
     aiInited = true;
+    if (isFirstInit) openAiSidebar();
     showAiTermSubtab();
     aiShowAuthOrLoad();
 });
 // also init if AI tab is the restored last-active tab
 if (CDOM.ID("ai-panel").classList.contains("show")) {
     aiInited = true;
+    openAiSidebar();
     showAiTermSubtab();
     aiShowAuthOrLoad();
 }
@@ -2006,6 +2011,7 @@ async function FileBtn() {
                 aiRefreshSessions();
                 termRefreshSessions();
                 CAlert.Info("Permission granted");
+                warnIfDefaultAuthPassword(pw);
             } else {
                 CAlert.E("Wrong password: " + (j.msg ?? ""));
             }
@@ -2690,6 +2696,7 @@ let buf=CFile.Load("../../README-"+lan+".md").then(async ()=>{
     CDOM.ID("main").innerHTML="";
     CDOM.ID("main").append(await CUtilWeb.MDReader("../../README"+lan+".md"));
 });
+
 
 
 

@@ -18,7 +18,7 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mqky7vyz_4";
+gPF.mVersion = "mqlq39sx_4";
 import { CAtelier } from "../../Artgine/artgine/app/CAtelier.js";
 var gAtl = new CAtelier();
 gAtl.mPF = gPF;
@@ -48,6 +48,11 @@ CDOM.ID("install-btn").addEventListener("click", () => {
         CAlert.Info(msg);
 });
 const MODAL_DOM_DELAY = 100;
+const DEFAULT_AUTH_PASSWORD = 'artgine';
+function warnIfDefaultAuthPassword(pw) {
+    if (pw === DEFAULT_AUTH_PASSWORD)
+        CAlert.E("Please change the default password.");
+}
 const AI_TOKEN_KEY = 'artgine.token';
 const aiFrameContainer = CDOM.ID("ai-frame-container");
 const aiFramePlaceholder = CDOM.ID("ai-frame-placeholder");
@@ -508,10 +513,6 @@ async function termStartNew(_mode = 'cmd', initialWorkingDir) {
         </div>
         <div class="mb-3 d-flex gap-4">
             <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="term-opt-allow">
-                <label class="form-check-label small text-secondary" for="term-opt-allow">Allow working dir write</label>
-            </div>
-            <div class="form-check">
                 <input class="form-check-input" type="checkbox" id="term-opt-mcp" checked>
                 <label class="form-check-label small text-secondary" for="term-opt-mcp">MCP</label>
             </div>
@@ -531,7 +532,6 @@ async function termStartNew(_mode = 'cmd', initialWorkingDir) {
     setTimeout(() => {
         let selectedMode = _mode;
         const modeButtons = container.querySelectorAll('.term-mode-btn');
-        const allowCheck = container.querySelector('#term-opt-allow');
         const mcpCheck = container.querySelector('#term-opt-mcp');
         const mdcopyCheck = container.querySelector('#term-opt-mdcopy');
         const updateModeUI = (mode) => {
@@ -540,9 +540,6 @@ async function termStartNew(_mode = 'cmd', initialWorkingDir) {
                 b.classList.toggle('btn-primary', b.dataset.mode === mode);
                 b.classList.toggle('btn-outline-secondary', b.dataset.mode !== mode);
             });
-            allowCheck.disabled = mode === 'cmd';
-            if (mode === 'cmd')
-                allowCheck.checked = false;
         };
         modeButtons.forEach(b => b.addEventListener('click', () => updateModeUI(b.dataset.mode)));
         updateModeUI(selectedMode);
@@ -560,8 +557,6 @@ async function termStartNew(_mode = 'cmd', initialWorkingDir) {
                 params.set('key', key);
             if (workingDir)
                 params.set('workingDir', workingDir);
-            if (allowCheck.checked)
-                params.set('allow', '1');
             if (!mcpCheck.checked)
                 params.set('mcp', '0');
             if (mdcopyCheck.checked)
@@ -1142,6 +1137,10 @@ const AI_SIDEBAR_COLLAPSED_KEY = 'ai.sidebarCollapsed';
 const aiSidebarEl = CDOM.ID("ai-sidebar");
 const aiSidebarToggleBtn = CDOM.ID("aiSidebarToggle");
 const aiSidebarOffcanvas = new window.bootstrap.Offcanvas(aiSidebarEl, { backdrop: false, scroll: true });
+function openAiSidebar() {
+    if (!aiSidebarEl.classList.contains('show'))
+        aiSidebarOffcanvas.show();
+}
 aiSidebarEl.addEventListener('shown.bs.offcanvas', () => {
     aiSidebarToggleBtn.querySelector('i').className = 'bi bi-layout-sidebar-inset';
     localStorage.setItem(AI_SIDEBAR_COLLAPSED_KEY, '0');
@@ -1151,7 +1150,7 @@ aiSidebarEl.addEventListener('hidden.bs.offcanvas', () => {
     localStorage.setItem(AI_SIDEBAR_COLLAPSED_KEY, '1');
 });
 aiSidebarEl.style.transition = 'none';
-aiSidebarOffcanvas.show();
+openAiSidebar();
 requestAnimationFrame(() => { aiSidebarEl.style.transition = ''; });
 function toggleSidebar() {
     const wasShown = aiSidebarEl.classList.contains('show');
@@ -1261,6 +1260,7 @@ async function aiDoAuth() {
             aiAuthOverlay.style.display = 'none';
             aiRefreshSessions();
             termRefreshSessions();
+            warnIfDefaultAuthPassword(pw);
         }
         else {
             aiAuthMsg.textContent = j.msg || 'Wrong password';
@@ -1483,12 +1483,16 @@ function showAiTermSubtab() {
     showTab('ai-term-subtab');
 }
 CDOM.ID("ai-tab").addEventListener("shown.bs.tab", () => {
+    const isFirstInit = !aiInited;
     aiInited = true;
+    if (isFirstInit)
+        openAiSidebar();
     showAiTermSubtab();
     aiShowAuthOrLoad();
 });
 if (CDOM.ID("ai-panel").classList.contains("show")) {
     aiInited = true;
+    openAiSidebar();
     showAiTermSubtab();
     aiShowAuthOrLoad();
 }
@@ -1912,6 +1916,7 @@ async function FileBtn() {
                 aiRefreshSessions();
                 termRefreshSessions();
                 CAlert.Info("Permission granted");
+                warnIfDefaultAuthPassword(pw);
             }
             else {
                 CAlert.E("Wrong password: " + (j.msg ?? ""));
