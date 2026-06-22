@@ -2,6 +2,13 @@ Artgine-Agent는 [Artgine](https://github.com/06fs4dix/Artgine) 엔진 위에서
 
 > Language **[English](README.md)**
 
+## 사용 가이드
+
+**[> 소개 ](https://06fs4dix.github.io/Artgine/help/artgine-agent-promo.html)**
+**[> 튜토리얼 ](https://06fs4dix.github.io/Artgine/help/artgine-agent-tutorial.html)**
+
+
+
 ## 시작하기
 
 ```bash
@@ -17,11 +24,7 @@ npm start
 
 > **기본 비밀번호**: `artgine` — 외부 네트워크에 노출하기 전에 반드시 변경하세요.
 
-## 사용 가이드
 
-**[> 전체 튜토리얼 보기](https://06fs4dix.github.io/Artgine/help/artgine-agent-tutorial.html)**
-
-설치부터 탭 탐색, AI/터미널 세션 설정, 단축키, 스케줄러 사용법까지 전체 가이드가 정리돼 있습니다. 처음 시작한다면 여기서 시작하세요.
 
 ## 주요 기능
 

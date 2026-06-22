@@ -2,6 +2,13 @@ Artgine-Agent is a web-based agent interface built on the [Artgine](https://gith
 
 > Language **[한국어](README-ko.md)**
 
+## Usage Guide
+
+**[> Take a Look](https://06fs4dix.github.io/Artgine/help/artgine-agent-promo.html)**
+**[> Tutorial](https://06fs4dix.github.io/Artgine/help/artgine-agent-tutorial.html)**
+
+
+
 ## Getting Started
 
 ```bash
@@ -17,11 +24,7 @@ Then open **`http://localhost:8050`** in your browser.
 
 > **Default password**: `artgine` — change this before exposing to a network.
 
-## Usage Guide
 
-**[> Full Tutorial (한국어)](https://06fs4dix.github.io/Artgine/help/artgine-agent-tutorial.html)**
-
-The tutorial covers installation, tab navigation, AI/terminal session setup, keyboard shortcuts, and the scheduler. Start here if you're new.
 
 ## Features at a Glance
 
