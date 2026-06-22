@@ -28,7 +28,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@anthropic-ai/claude-code": "^2.1.163",
+	"@nut-tree-fork/nut-js": "^4.2.6",
     "@types/node": "^22.14.1",
     "@types/ws": "^8.18.1",
     "compression": "^1.8.1",

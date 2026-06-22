@@ -10,6 +10,7 @@ import { CTerminalRouter } from "../../Artgine/artgine/server/CTerminalRouter.js
 import { CDownloadServer } from "../../Artgine/artgine/server/CDownloadServer.js";
 import { CAIChatRouter } from "../../Artgine/artgine/server/CAIChatRouter.js";
 import { CPlaywrightRouter } from "../../Artgine/artgine/server/CPlaywrightRouter.js";
+import { CRemoteDesktopRouter } from "../../Artgine/artgine/server/CRemoteDesktopRouter.js";
 
 
 // ---- 기타 라우터 ----
@@ -17,6 +18,7 @@ new CFileServer().SetServerMain(CServerMain.Main());
 new CTerminalRouter().SetServerMain(CServerMain.Main());
 new CAIChatRouter().SetServerMain(CServerMain.Main());
 new CPlaywrightRouter().SetServerMain(CServerMain.Main());
+new CRemoteDesktopRouter().SetServerMain(CServerMain.Main());
 //new CTerminalSocket().SetServerMain(CServerMain.Main());
 
 
