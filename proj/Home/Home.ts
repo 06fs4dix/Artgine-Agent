@@ -1,12 +1,12 @@
 //Version
-import "../../Artgine/artgine/artgine.js"
+import "../../artgine/artgine.js"
 
 //Class
-import {CClass} from "../../Artgine/artgine/basic/CClass.js";
+import {CClass} from "../../artgine/basic/CClass.js";
 import { MountDownloadTab } from "./Downloads/DownloadTab.js";
 CClass.Push(MountDownloadTab);
 //Atelier
-import {CPreferences} from "../../Artgine/artgine/basic/CPreferences.js";
+import {CPreferences} from "../../artgine/basic/CPreferences.js";
 var gPF = new CPreferences();
 gPF.mTargetWidth = 0;
 gPF.mTargetHeight = 0;
@@ -22,34 +22,32 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mqp8hov7_4";
+gPF.mVersion = "mqs1uleo_2";
 
-import {CAtelier} from "../../Artgine/artgine/app/CAtelier.js";
+import {CAtelier} from "../../artgine/app/CAtelier.js";
 
-import {CPlugin} from "../../Artgine/artgine/util/CPlugin.js";
+import {CPlugin} from "../../artgine/util/CPlugin.js";
 var gAtl = new CAtelier();
 gAtl.mPF = gPF;
 await gAtl.Init([],"");
 //The content above this line is automatically set by the program. Do not modify.⬆✋🚫⬆☠️💥🔥
 
 //EntryPoint
-import {CObject} from "../../Artgine/artgine/basic/CObject.js"
-import { CSing, CSingOption } from "../../Artgine/artgine/server/CSing.js";
-import { CConfirm, CModal } from "../../Artgine/artgine/basic/CModal.js";
-import { CUtil } from "../../Artgine/artgine/basic/CUtil.js";
-import {CBoard} from "../../Artgine/artgine/server/CBoard.js";
-import { CUtilWeb } from "../../Artgine/artgine/util/CUtilWeb.js";
-import { CStorage } from "../../Artgine/artgine/system/CStorage.js";
-import { CAlert } from "../../Artgine/artgine/basic/CAlert.js";
-import { CDOM } from "../../Artgine/artgine/basic/CDOM.js";
-import { CFecth } from "../../Artgine/artgine/network/CFecth.js";
-import { CPath } from "../../Artgine/artgine/basic/CPath.js";
-import { getAuthToken, setAuthToken, removeAuthToken } from "../../Artgine/artgine/server/CAuthToken.js";
-import { CFileViewer, CMDViewer, CSheetViewer, CModalStackMsg, CModalMusic } from "../../Artgine/artgine/util/CModalUtil.js";
-import { CWebSocket } from '../../Artgine/artgine/network/CWebSocket.js';
-import { CPWA } from '../../Artgine/artgine/system/CPWA.js';
-import { Bootstrap } from "../../Artgine/artgine/basic/Bootstrap.js";
-import { CTooltip } from "../../Artgine/artgine/util/CTooltip.js";
+import {CObject} from "../../artgine/basic/CObject.js"
+import { CSing, CSingOption } from "../../artgine/server/CSing.js";
+import { CConfirm, CModal } from "../../artgine/basic/CModal.js";
+import { CUtil } from "../../artgine/basic/CUtil.js";
+import { CUtilWeb } from "../../artgine/util/CUtilWeb.js";
+import { CStorage } from "../../artgine/system/CStorage.js";
+import { CAlert } from "../../artgine/basic/CAlert.js";
+import { CDOM } from "../../artgine/basic/CDOM.js";
+import { CFecth } from "../../artgine/network/CFecth.js";
+import { CPath } from "../../artgine/basic/CPath.js";
+import { getAuthToken, setAuthToken, removeAuthToken } from "../../artgine/server/CAuthToken.js";
+import { CFileViewer, CMDViewer, CSheetViewer, CModalStackMsg, CModalMusic } from "../../artgine/util/CModalUtil.js";
+import { CWebSocket } from '../../artgine/network/CWebSocket.js';
+import { CPWA } from '../../artgine/system/CPWA.js';
+import { Bootstrap } from "../../artgine/basic/Bootstrap.js";
 
 
 if(gPF.mServer!="webServer")
@@ -237,6 +235,7 @@ function runHomeHotkey(key: string): boolean {
         case 'F2': showTab('file-tab'); FileSearch(); return true;
         case 'F3': showTab('rdp-tab'); return true;
         case 'F4': showTab('ai-tab'); return true;
+        case 'F7': showTab('board-tab'); return true;
     }
     return false;
 }
@@ -245,6 +244,11 @@ function runHomeHotkey(key: string): boolean {
 // display:none 토글은 iframe 내부 document의 visibilitychange를 발생시키지 않으므로 postMessage로 직접 알린다.
 function postFrameVisible(f: HTMLIFrameElement | null | undefined, visible: boolean) {
     try { f?.contentWindow?.postMessage({ type: 'frame-visibility', visible }, '*'); } catch (_) {}
+}
+
+function postFrameMessage(key: string, msg: any) {
+    const f = iframePool.get(key);
+    try { f?.contentWindow?.postMessage(msg, '*'); } catch (_) {}
 }
 
 // ---- 공통 iframe 풀 관리 ----
@@ -292,6 +296,8 @@ function destroyPooledFrame(ctx: FramePoolCtx, key: string) {
     ctx.updatePlaceholder();
 }
 
+const noFocusTermKeys = new Set<string>(); // 키보드 ↑/↓로 세션 탐색 중 새로 만들어지는 터미널 iframe엔 자동 포커스를 막는다 (key별 1회성)
+
 function isAiTabActive(): boolean { return CDOM.ID('ai-tab').classList.contains('active'); }
 function isBrowserSubtabActive(): boolean { return CDOM.ID('ai-browser-subtab').classList.contains('active'); }
 
@@ -311,9 +317,13 @@ const aiFrameCtx: FramePoolCtx = {
     onCreate: (f, key) => {
         f.setAttribute('allow', 'clipboard-read; clipboard-write');
         f.addEventListener('load', () => {
-            const isTerm = key.startsWith('term:') || key.startsWith('term-new:');
-            try {
-                f.contentWindow?.addEventListener('keydown', (e) => {
+                const isTerm = key.startsWith('term:') || key.startsWith('term-new:');
+                if (isTerm) {
+                    if (noFocusTermKeys.has(key)) { noFocusTermKeys.delete(key); }
+                    else { postFrameMessage(key, { type: 'focus-input' }); }
+                }
+                try {
+                    f.contentWindow?.addEventListener('keydown', (e) => {
                     if (isTerm && handleTermSidebarShortcut(e)) return;
                     if (!isTerm && e.key === 'Tab') { e.preventDefault(); handleTabKey(); return; }
                     if (!isTerm && e.key === 'ArrowRight' && _activeNotifCallback) { e.preventDefault(); handleNotifKey(); return; }
@@ -332,7 +342,7 @@ const aiFrameCtx: FramePoolCtx = {
                             }
                         }
                     }
-                    if (!isTerm && (e.key === 'F1' || e.key === 'F2' || e.key === 'F3' || e.key === 'F4')) {
+                    if (!isTerm && (e.key === 'F1' || e.key === 'F2' || e.key === 'F3' || e.key === 'F4' || e.key === 'F7')) {
                         e.preventDefault();
                         runHomeHotkey(e.key);
                     }
@@ -357,11 +367,15 @@ function destroyFrame(key: string) {
 
 function focusActiveFrame() {
     if (!activeFrameKey) return;
+    if (activeFrameKey.startsWith('term:') || activeFrameKey.startsWith('term-new:')) {
+        postFrameMessage(activeFrameKey, { type: 'focus-input' });
+        return;
+    }
     const f = iframePool.get(activeFrameKey);
     if (!f) return;
     try {
         f.contentWindow?.focus();
-        const input = f.contentDocument?.querySelector<HTMLElement>('#mi-bar textarea, textarea, input');
+        const input = f.contentDocument?.querySelector<HTMLElement>('textarea, input');
         if (input) {
             input.focus();
             return;
@@ -488,7 +502,6 @@ async function aiRefreshSessions() {
                     delConfirm.Open();
                 },
                 popup: { url: () => `${CPath.WebRootArtgineUrl()}artgine/server/html/Chat.html?session=${encodeURIComponent(s.sessionId)}`, title: s.title, winName: `chat_${s.sessionId}` },
-                tooltipText: s.title + (s.lastMsg ? '\n\n' + s.lastMsg : ''),
             });
             aiSessionList.appendChild(item);
         }
@@ -688,15 +701,17 @@ async function termStartNew(_mode: 'cmd' | 'claude' /* | 'gemini' */ | 'codex' |
     }, MODAL_DOM_DELAY);
 }
 
-async function termConnectSession(port: number) {
+async function termConnectSession(port: number, focusInput: boolean = true) {
     const key = `term:${port}`;
     // 이미 풀에 있으면 그대로 보여주고 끝
     if (iframePool.has(key)) {
         showFrame(key, '');
         aiRefreshSessions();
         termRefreshSessions();
+        if (focusInput) postFrameMessage(key, { type: 'focus-input' });
         return;
     }
+    if (!focusInput) noFocusTermKeys.add(key);
     showFrame(key, `${CPath.WebRootUrl()}cmd/terminal-proxy?port=${port}`);
     aiRefreshSessions();
     termRefreshSessions();
@@ -801,7 +816,6 @@ async function termRefreshSessions() {
                 onShare: () => termShowShareLink(s.port),
                 onDelete: () => termConfirmKillSession(s.port),
                 popup: { url: () => `${CPath.WebRootUrl()}cmd/terminal-proxy?port=${s.port}`, title: s.key || s.mode || 'Terminal', winName: `term_${s.port}` },
-                tooltipText: s.lastMsg || '(empty)',
             });
             termSessionList.appendChild(item);
         }
@@ -866,6 +880,7 @@ function showShareLinkModal(header: string, descHtml: string, shareUrl: string) 
         </div>
     `);
     modal.SetTitle(CModal.eTitle.TextClose);
+    modal.SetSize(480, 160);
     modal.Open(CModal.ePos.Center);
     setTimeout(() => {
         const input = document.getElementById(uid) as HTMLInputElement | null;
@@ -905,7 +920,6 @@ interface SessionItemSpec {
     onShare: () => void;
     onDelete: () => void;
     popup: { url: () => string; title: string; winName: string };
-    tooltipText?: string;                   // 있으면 CTooltip 부착
     cursorPointer?: boolean;
 }
 function createSessionItem(spec: SessionItemSpec): HTMLDivElement {
@@ -940,12 +954,6 @@ function createSessionItem(spec: SessionItemSpec): HTMLDivElement {
     item.querySelector<HTMLElement>(`[data-act="${spec.deleteAct}"]`)!.addEventListener('click', spec.onDelete);
     item.addEventListener('mouseenter', () => { if (!spec.isActive) item.classList.add('bg-body-secondary'); });
     item.addEventListener('mouseleave', () => item.classList.remove('bg-body-secondary'));
-    if (spec.tooltipText !== undefined) {
-        const tipEl = document.createElement('div');
-        tipEl.style.cssText = 'white-space:pre-wrap;max-width:280px;font-size:0.82rem;';
-        tipEl.textContent = spec.tooltipText;
-        new CTooltip(tipEl, item, CTooltip.eTrigger.Hover, CTooltip.ePlacement.Left);
-    }
     return item;
 }
 
@@ -1244,7 +1252,7 @@ function goNextSession(dir: 1 | -1): boolean {
             : -1;
         const nxt = curIdx === -1 ? 0 : Math.max(0, Math.min(items.length - 1, curIdx + dir));
         if (nxt === curIdx) return false;
-        termConnectSession(parseInt(items[nxt].dataset.port!));
+        termConnectSession(parseInt(items[nxt].dataset.port!), false);
         items[nxt].scrollIntoView({ block: 'nearest' });
         return true;
     }
@@ -1326,7 +1334,7 @@ document.addEventListener('keydown', (e) => {
         goNextSession(e.key === 'ArrowUp' ? -1 : 1);
         return;
     }
-    if (e.key === 'F1' || e.key === 'F2' || e.key === 'F3' || e.key === 'F4') {
+    if (e.key === 'F1' || e.key === 'F2' || e.key === 'F3' || e.key === 'F4' || e.key === 'F7') {
         e.preventDefault();
         runHomeHotkey(e.key);
     }
@@ -1396,7 +1404,7 @@ aiAuthPwInput.addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 
 
 // 서브탭 전환 시 해당 리스트 갱신
 CDOM.ID("ai-chat-subtab").addEventListener("shown.bs.tab", () => aiRefreshSessions());
-CDOM.ID("ai-term-subtab").addEventListener("shown.bs.tab", () => { termRefreshSessions(); schedRefresh(); });
+CDOM.ID("ai-term-subtab").addEventListener("shown.bs.tab", () => { termRefreshSessions(); schedRefresh(); focusActiveFrame(); });
 CDOM.ID("ai-browser-subtab").addEventListener("shown.bs.tab", () => browserRefreshList());
 
 // ---- Browser tab: Playwright sessions ----
@@ -1652,8 +1660,13 @@ function rdpRenderList() {
     const localItem = document.createElement('div');
     localItem.className = 'ai-session-item d-flex align-items-center gap-2 px-2 py-2 rounded'
         + (activeRdpFrameKey === 'rdp:local' ? ' bg-primary-subtle' : '');
-    localItem.innerHTML = `<i class="bi bi-pc-display"></i><span class="flex-grow-1">Local</span>`;
+    localItem.innerHTML = `<i class="bi bi-pc-display"></i><span class="flex-grow-1">Local</span>`
+        + `<button type="button" class="btn btn-sm btn-link text-secondary p-0" data-act="local-link" title="Show accessible link"><i class="bi bi-link-45deg"></i></button>`;
     localItem.addEventListener('click', () => rdpOpenLocal());
+    localItem.querySelector<HTMLButtonElement>('[data-act="local-link"]')!.addEventListener('click', (e) => {
+        e.stopPropagation();
+        rdpShowLocalAccessLink();
+    });
     rdpSessionList.appendChild(localItem);
 
     rdpRemotes.forEach((r, i) => {
@@ -1672,6 +1685,76 @@ function rdpRenderList() {
             popup: { url: () => `${ParseFileHomeUrl(r.url).webRootUrl}artgine/server/html/RemoteDesktop.html`, title: r.url, winName: `rdp_${i}` },
         });
         rdpSessionList.appendChild(item);
+    });
+}
+
+// 현재 페이지가 localhost로 열려있으면 공인 IP로 바꾸고, fetch(no-cors)로 외부에서
+// 그 포트에 실제로 닿는지 확인한다. no-cors는 응답 본문을 읽을 수 없지만, 연결 자체가
+// 실패(타임아웃/거부)하면 reject되므로 포트 개방 여부 판단에는 충분하다.
+async function rdpResolveAccessibleUrl(): Promise<{ url: string; blocked: boolean }> {
+    const loc = window.location;
+    const isLocalHost = loc.hostname === 'localhost' || loc.hostname === '127.0.0.1' || loc.hostname === '::1';
+    if (!isLocalHost) return { url: loc.href, blocked: false };
+
+    let publicIp = '';
+    try {
+        publicIp = (await (await fetch('https://api.ipify.org?format=text')).text()).trim();
+    } catch (_) {
+        return { url: '', blocked: true };
+    }
+    if (!publicIp) return { url: '', blocked: true };
+
+    const port = loc.port ? `:${loc.port}` : '';
+    const url = `${loc.protocol}//${publicIp}${port}${loc.pathname}${loc.search}`;
+    const reachable = await rdpCheckPortOpen(url);
+    return { url, blocked: !reachable };
+}
+
+function rdpCheckPortOpen(url: string, timeoutMs = 4000): Promise<boolean> {
+    return new Promise(resolve => {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => { ctrl.abort(); resolve(false); }, timeoutMs);
+        fetch(url, { mode: 'no-cors', signal: ctrl.signal })
+            .then(() => { clearTimeout(timer); resolve(true); })
+            .catch(() => { clearTimeout(timer); resolve(false); });
+    });
+}
+
+async function rdpShowLocalAccessLink() {
+    const boxId = `rdp_local_link_${Date.now()}`;
+    const modal = new CModal();
+    modal.SetHeader('Local Access Link');
+    modal.SetBody(`<div id="${boxId}" class="small text-secondary">Checking accessible link...</div>`);
+    modal.SetTitle(CModal.eTitle.TextClose);
+    modal.SetSize(480, 160);
+    modal.Open(CModal.ePos.Center);
+
+    const { url, blocked } = await rdpResolveAccessibleUrl();
+    const box = document.getElementById(boxId);
+    if (!box) return;
+
+    if (blocked || !url) {
+        box.innerHTML = `<div class="text-danger">Port appears to be blocked from outside access. Please check port forwarding.</div>`;
+        return;
+    }
+
+    const inputId = `${boxId}_input`;
+    const copyId = `${boxId}_copy`;
+    box.className = '';
+    box.innerHTML = `
+        <div class="mb-2 small text-secondary">Accessible link for this page:</div>
+        <div class="input-group">
+            <input id="${inputId}" type="text" class="form-control form-control-sm" readonly value="${aiEscapeHtml(url)}">
+            <button id="${copyId}" class="btn btn-outline-secondary btn-sm" title="Copy"><i class="bi bi-clipboard"></i></button>
+        </div>`;
+    const input = document.getElementById(inputId) as HTMLInputElement | null;
+    const copyBtn = document.getElementById(copyId) as HTMLButtonElement | null;
+    input?.addEventListener('click', () => input.select());
+    copyBtn?.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(url); }
+        catch { input?.select(); document.execCommand('copy'); }
+        copyBtn.innerHTML = '<i class="bi bi-check2"></i>';
+        setTimeout(() => { copyBtn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 1500);
     });
 }
 
@@ -2177,6 +2260,7 @@ async function ConnectFileHomeUrl(input?: string) {
     }
     await LoadFileList(path);
     refreshFileAuthState();
+    memoNotifyRootChanged();
 }
 window["ConnectFileHomeUrl"] = ConnectFileHomeUrl;
 
@@ -2951,3 +3035,425 @@ window["NextPhoto"]=NextPhoto;
 
 
 
+
+// ==================================================================================================================
+// 메모
+// ==================================================================================================================
+const memoTab = CDOM.ID("board-tab") as HTMLButtonElement;
+const memoPanel = CDOM.ID("board") as HTMLDivElement;
+let memoProviders: { id: string; available: boolean; models: { value: string; label: string }[] }[] = [];
+// RDP 전환으로 서버가 바뀌는 도중 이전 서버를 향한 요청이 늦게 응답하면 새로 받아온 목록을
+// 옛 서버 데이터로 덮어쓸 수 있으므로, 서버 전환마다 증가시켜 응답이 최신 전환인지 검증한다.
+let memoLoadGen = 0;
+
+function memoFormatTime(_t: number): string {
+    const s = String(_t);
+    if (s.length < 14) return s;
+    return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)} ${s.slice(8, 10)}:${s.slice(10, 12)}`;
+}
+
+// RDP 전환으로 g_fileWebRootUrl이 바뀌면 Memo도 그 서버를 대상으로 동작해야 하므로,
+// 다른 origin(원격 서버)으로 보내는 요청에 토큰을 직접 동봉한다(쿠키는 cross-origin이라 전달되지 않음).
+async function memoGetJson(_url: string): Promise<any> {
+    const token = GetFileToken();
+    const url = token ? _url + (_url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token) : _url;
+    const r = await authedFetch(url);
+    if (r.status === 401) { removeAuthToken(g_fileWebRootUrl); memoShowAuthOrLoad(); return { ok: false }; }
+    return await r.json();
+}
+
+async function memoPostJson(_url: string, _body: object): Promise<any> {
+    const r = await authedFetch(_url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ..._body, token: GetFileToken() }) });
+    if (r.status === 401) { removeAuthToken(g_fileWebRootUrl); memoShowAuthOrLoad(); return { ok: false }; }
+    return await r.json();
+}
+
+async function memoLoadProviders() {
+    if (memoProviders.length > 0) { memoPopulateProviderSelect(); return; }
+    const gen = memoLoadGen;
+    try {
+        const j = await memoGetJson(FileApiUrl('ai/chat/providers'));
+        if (gen !== memoLoadGen) return;
+        if (j.ok) {
+            memoProviders = j.providers;
+            memoPopulateProviderSelect();
+        }
+    } catch (e) { console.error('memo providers error:', e); }
+}
+
+async function memoShowAuthOrLoad() {
+    const overlay = CDOM.ID("memo-auth-overlay") as HTMLDivElement | null;
+    if (overlay == null) return;
+    const authed = await fileCheckAuth();
+    if (!authed) {
+        refreshFileAuthState();
+        const wasVisible = overlay.style.display === 'flex';
+        overlay.style.display = 'flex';
+        if (!wasVisible) {
+            const pwInput = CDOM.ID("memoAuthPwInput") as HTMLInputElement;
+            const msgEl = CDOM.ID("memoAuthMsg") as HTMLElement;
+            pwInput.value = '';
+            msgEl.textContent = '';
+            setTimeout(() => pwInput.focus(), 50);
+        }
+    } else {
+        refreshFileAuthState();
+        overlay.style.display = 'none';
+        memoLoadProviders();
+        memoLoadRecentLog();
+    }
+}
+
+async function memoDoAuth() {
+    const pwInput = CDOM.ID("memoAuthPwInput") as HTMLInputElement;
+    const msgEl = CDOM.ID("memoAuthMsg") as HTMLElement;
+    const submitBtn = CDOM.ID("memoAuthSubmitBtn") as HTMLButtonElement;
+    const pw = pwInput.value;
+    if (!pw) return;
+    submitBtn.disabled = true;
+    msgEl.textContent = '';
+    try {
+        const j = await CFecth.Exe(FileApiUrl("auth/login"), { password: pw }, "json") as any;
+        if (j.ok) {
+            SetFileToken(j.token);
+            refreshFileAuthState();
+            (CDOM.ID("memo-auth-overlay") as HTMLDivElement).style.display = 'none';
+            memoLoadProviders();
+            memoLoadRecentLog();
+            warnIfDefaultAuthPassword(pw);
+        } else {
+            msgEl.textContent = j.msg || 'Wrong password';
+        }
+    } catch { msgEl.textContent = 'Server error'; }
+    submitBtn.disabled = false;
+}
+
+function memoPopulateProviderSelect() {
+    const providerEl = CDOM.ID("memoProviderSelect") as HTMLSelectElement;
+    if (providerEl == null) return;
+    providerEl.innerHTML = memoProviders.map(p =>
+        `<option value="${p.id}" ${p.available ? '' : 'disabled'}>${p.id}${p.available ? '' : ' (unavailable)'}</option>`
+    ).join('');
+    memoPopulateModelSelect();
+}
+
+function memoPopulateModelSelect() {
+    const providerEl = CDOM.ID("memoProviderSelect") as HTMLSelectElement;
+    const modelEl = CDOM.ID("memoModelSelect") as HTMLSelectElement;
+    if (providerEl == null || modelEl == null) return;
+    const info = memoProviders.find(p => p.id === providerEl.value);
+    const models = info ? info.models : [];
+    modelEl.innerHTML = models.map(m => `<option value="${m.value}">${aiEscapeHtml(m.label)}</option>`).join('');
+    if (models.length > 0) {
+        modelEl.value = models[Math.floor(models.length / 2)].value;
+    }
+}
+
+async function memoLoadRecentLog() {
+    const gen = memoLoadGen;
+    try {
+        const j = await memoGetJson(FileApiUrl('Memo/List?n=30'));
+        if (gen !== memoLoadGen) return;
+        if (!j.ok) return;
+        const list = j.list as { original: string; keywords: string[]; chatTime: number; selfOffset: number; headOffset: number; lastActivity: number }[];
+        const logEl = CDOM.ID("memo-log");
+        if (logEl == null) return;
+        logEl.innerHTML = '';
+        if (list.length === 0) { memoRenderEmptyLog(); return; }
+        for (let i = list.length - 1; i >= 0; i--) {
+            const r = list[i];
+            const wrap = document.createElement('div');
+            wrap.style.cursor = 'pointer';
+            wrap.innerHTML = `
+                <div class="text-secondary small text-uppercase mb-1" style="letter-spacing: .5px;">${r.headOffset !== r.selfOffset ? `#${r.headOffset}-#${r.selfOffset}` : `#${r.selfOffset}`} · ${memoFormatTime(r.chatTime)}</div>
+                <div class="msg-bubble p-3 rounded border-start border-4 border-primary bg-primary-subtle">${aiEscapeHtml(r.original)}</div>
+                ${r.keywords && r.keywords.length > 0 ? `<div class="mt-2 d-flex flex-wrap gap-1">${r.keywords.map(k => `<span class="badge bg-secondary">#${k}</span>`).join('')}</div>` : ''}
+            `;
+            wrap.addEventListener('click', () => memoOpenChainModal(r.selfOffset));
+            logEl.appendChild(wrap);
+        }
+        memoScrollBottom();
+    } catch (e) { console.error('memo recent log error:', e); }
+}
+
+type MemoChainItem = { original: string; chatTime: number; selfOffset: number; nextOffset: number };
+
+function memoChainBodyHtml(_chain: MemoChainItem[]): string {
+    const range = _chain.length > 1 ? `#${_chain[0].selfOffset} - #${_chain[_chain.length - 1].selfOffset}` : `#${_chain[0].selfOffset}`;
+    return `
+        <div class="d-flex flex-column h-100">
+            <div class="text-secondary small text-uppercase px-2 pt-2" style="letter-spacing: .5px;">${range}</div>
+            <div id="memoChainLog" class="flex-grow-1 overflow-auto d-flex flex-column gap-2 p-2">
+                ${_chain.map(r => `
+                    <div class="position-relative">
+                        <div class="text-secondary small text-uppercase mb-1" style="letter-spacing: .5px;">#${r.selfOffset} · ${memoFormatTime(r.chatTime)}</div>
+                        <button type="button" class="btn-close memoChainDeleteBtn" data-offset="${r.selfOffset}" aria-label="Delete" style="position:absolute; top:0; right:0;"></button>
+                        <div class="msg-bubble p-3 rounded border-start border-4 border-primary bg-primary-subtle" style="white-space: pre-wrap; word-wrap: break-word;">${aiEscapeHtml(r.original)}</div>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="border-top p-2 d-flex gap-2 align-items-end">
+                <textarea id="memoChainInput" class="form-control" placeholder="Continue this conversation..." rows="1" style="resize: none; max-height: 160px;"></textarea>
+                <button id="memoChainSendBtn" class="btn btn-primary"><i class="bi bi-send"></i></button>
+            </div>
+        </div>
+    `;
+}
+
+async function memoRefreshChainModal(_modal: CModal, _selfOffset: number): Promise<void> {
+    const j = await memoGetJson(FileApiUrl('Memo/Get?offset=' + _selfOffset));
+    if (!j.ok) return;
+    const chain = j.chain as MemoChainItem[];
+    if (chain.length === 0) { _modal.Close(); return; }
+
+    const tail = chain.find(r => r.nextOffset === 0) || chain[chain.length - 1];
+
+    _modal.SetBody(memoChainBodyHtml(chain));
+
+    const body = _modal.GetBody() as HTMLElement;
+    const logEl = body.querySelector('#memoChainLog') as HTMLElement;
+    logEl.scrollTop = logEl.scrollHeight;
+
+    const input = body.querySelector('#memoChainInput') as HTMLTextAreaElement;
+    const sendBtn = body.querySelector('#memoChainSendBtn') as HTMLButtonElement;
+    const send = () => memoChainSend(_modal, input, sendBtn, tail.selfOffset);
+    sendBtn.addEventListener('click', send);
+    input.addEventListener('keydown', (ev: KeyboardEvent) => {
+        if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); send(); }
+    });
+    setTimeout(() => input.focus(), 50);
+
+    body.querySelectorAll('.memoChainDeleteBtn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const offset = Number((btn as HTMLElement).dataset.offset);
+            memoChainDelete(_modal, chain, offset);
+        });
+    });
+}
+
+async function memoChainDelete(_modal: CModal, _chain: MemoChainItem[], _offset: number): Promise<void> {
+    if (!confirm('이 메모를 삭제할까요?')) return;
+    try {
+        const j = await memoPostJson(FileApiUrl('Memo/Delete'), { offset: _offset });
+        if (!j.ok) { console.error('memo delete error:', j.msg); return; }
+
+        await memoLoadRecentLog();
+        const remaining = _chain.find(r => r.selfOffset !== _offset);
+        if (remaining == null) { _modal.Close(); return; }
+        await memoRefreshChainModal(_modal, remaining.selfOffset);
+    } catch (e) {
+        console.error('memo delete error:', e);
+    }
+}
+
+async function memoChainSend(_modal: CModal, _input: HTMLTextAreaElement, _btn: HTMLButtonElement, _continueOffset: number): Promise<void> {
+    const text = _input.value.trim();
+    if (!text) return;
+
+    _input.disabled = true;
+    _btn.disabled = true;
+    try {
+        const j = await memoPostJson(FileApiUrl('Memo/Chat'), {
+            mode: 'write',
+            text,
+            continueOffset: _continueOffset,
+        });
+        if (!j.ok) { console.error('memo chain send error:', j.msg); return; }
+
+        await memoLoadRecentLog();
+        await memoRefreshChainModal(_modal, _continueOffset);
+    } catch (e) {
+        console.error('memo chain send error:', e);
+    } finally {
+        _input.disabled = false;
+        _btn.disabled = false;
+    }
+}
+
+async function memoOpenChainModal(_selfOffset: number) {
+    const modal = new CModal("memoChainModal");
+    modal.SetTitle(CModal.eTitle.TextFullClose);
+    modal.SetHeader("Memo");
+    modal.SetSize(480, 600);
+    modal.SetBody('<div class="text-center text-secondary p-4">Loading...</div>');
+    modal.Open(CModal.ePos.Center);
+    await memoRefreshChainModal(modal, _selfOffset);
+}
+
+function memoScrollBottom() {
+    const el = CDOM.ID("memo-content");
+    if (el) el.scrollTop = el.scrollHeight;
+}
+
+let memoPendingEl: HTMLElement | null = null;
+
+function memoAppendBubble(_role: 'user' | 'ai' | 'system', _text: string, _pending?: boolean): HTMLElement {
+    const logEl = CDOM.ID("memo-log");
+    if (logEl == null) return null!;
+    const placeholder = logEl.querySelector('#memoEmptyState');
+    if (placeholder) placeholder.remove();
+
+    const roleLabel = _role === 'ai' ? 'Memo' : _role === 'system' ? 'System' : '';
+    const bubbleCls = _role === 'user'
+        ? _pending
+            ? 'msg-bubble p-3 rounded border-start border-4 border-secondary bg-body-tertiary memo-pending'
+            : 'msg-bubble p-3 rounded border-start border-4 border-primary bg-primary-subtle'
+        : _role === 'ai'
+        ? 'msg-bubble p-3 rounded border-start border-4 border-secondary bg-body-tertiary'
+        : 'msg-bubble p-2 px-3 rounded border border-danger bg-danger-subtle text-danger-emphasis';
+
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `
+        <div class="text-secondary small text-uppercase mb-1" style="letter-spacing: .5px;">${roleLabel}</div>
+        <div class="${bubbleCls}">${aiEscapeHtml(_text)}</div>
+    `;
+    logEl.appendChild(wrap);
+    memoScrollBottom();
+    return wrap;
+}
+
+function memoRenderEmptyLog() {
+    const logEl = CDOM.ID("memo-log");
+    if (logEl == null) return;
+    logEl.innerHTML = '';
+    const empty = document.createElement('div');
+    empty.id = 'memoEmptyState';
+    empty.className = 'text-center text-secondary mt-5';
+    empty.innerHTML = `
+        <i class="bi bi-journal-text fs-1 d-block mb-2"></i>
+        <div>Enter a new memo.</div>
+    `;
+    logEl.appendChild(empty);
+}
+
+async function memoSend() {
+    const textEl = CDOM.ID("memoTextInput") as HTMLTextAreaElement;
+    const modeEl = CDOM.ID("memoModeSelect") as HTMLSelectElement;
+    const providerEl = CDOM.ID("memoProviderSelect") as HTMLSelectElement;
+    const modelEl = CDOM.ID("memoModelSelect") as HTMLSelectElement;
+    const sendBtn = CDOM.ID("memoSendBtn") as HTMLButtonElement;
+    const text = textEl.value.trim();
+    if (!text) return;
+
+    memoPendingEl = memoAppendBubble('user', text, true);
+    textEl.value = '';
+    sendBtn.disabled = true;
+    try {
+        const j = await memoPostJson(FileApiUrl('Memo/Chat'), {
+            provider: providerEl.value || undefined,
+            model: modelEl.value || undefined,
+            mode: modeEl.value,
+            text,
+        });
+        if (!j.ok) { memoAppendBubble('system', j.msg || 'Error'); return; }
+
+        if (j.result === 'saved') {
+            if (memoPendingEl) { memoPendingEl.remove(); memoPendingEl = null; }
+            await memoLoadRecentLog();
+        } else {
+            if (memoPendingEl) {
+                const bubble = memoPendingEl.querySelector('.msg-bubble') as HTMLElement;
+                if (bubble) bubble.className = 'msg-bubble p-3 rounded border-start border-4 border-primary bg-primary-subtle';
+                memoPendingEl = null;
+            }
+            memoAppendBubble('ai', j.result);
+        }
+    } catch (e) {
+        console.error('memo chat error:', e);
+        memoAppendBubble('system', 'Network error');
+    } finally {
+        sendBtn.disabled = false;
+    }
+}
+
+function memoEnsureLayout() {
+    if (CDOM.ID("memo-content")) return;
+
+    memoTab.dataset.en = "Memo";
+    memoTab.setAttribute("aria-controls", "board");
+    memoTab.innerHTML = '<i class="bi bi-journal-text"></i> Memo<span class="text-secondary" style="font-size:0.7em;">F7</span>';
+    memoPanel.classList.add("position-relative");
+    memoPanel.style.overflow = "hidden";
+    memoPanel.innerHTML = `
+        <style>
+            #memo-content .msg-bubble { white-space: pre-wrap; word-wrap: break-word; line-height: 1.6; }
+            #memo-content .msg-bubble pre { background: var(--bs-tertiary-bg); padding: .5rem; border-radius: .25rem; overflow-x: auto; }
+            #memo-content .msg-bubble code { font-family: var(--bs-font-monospace); font-size: .875em; }
+            #memo-content .memo-pending { opacity: 0.5; }
+        </style>
+        <div id="memo-auth-overlay" class="position-absolute align-items-center justify-content-center"
+             style="inset:0; z-index:20; background:var(--bs-body-bg); display:none;">
+            <div class="card shadow" style="width:320px;">
+                <div class="card-body">
+                    <h5 class="card-title mb-3"><i class="bi bi-shield-lock"></i> Authentication</h5>
+                    <div class="mb-3">
+                        <input type="password" id="memoAuthPwInput" class="form-control" placeholder="Password">
+                    </div>
+                    <div id="memoAuthMsg" class="text-danger small mb-2" style="min-height:1.2em;"></div>
+                    <button id="memoAuthSubmitBtn" class="btn btn-primary w-100">Sign In</button>
+                </div>
+            </div>
+        </div>
+        <div id="memo-frame-container" class="d-flex flex-column overflow-hidden position-absolute bg-body text-body" style="inset:0;" data-bs-theme="dark">
+            <div id="memo-topbar" class="d-flex align-items-center gap-2 p-2 border-bottom bg-body-tertiary">
+                <select id="memoModeSelect" class="form-select form-select-sm w-auto">
+                    <option value="auto">Auto</option>
+                    <option value="write">Write</option>
+                    <option value="read">Read</option>
+                </select>
+                <select id="memoProviderSelect" class="form-select form-select-sm w-auto"></select>
+                <select id="memoModelSelect" class="form-select form-select-sm w-auto"></select>
+            </div>
+            <div id="memo-content" class="flex-grow-1 overflow-auto p-3 bg-body">
+                <div id="memo-log" class="d-flex flex-column gap-2">
+                    <div id="memoEmptyState" class="text-center text-secondary mt-5">
+                        <i class="bi bi-journal-text fs-1 d-block mb-2"></i>
+                        <div>Enter a new memo.</div>
+                    </div>
+                </div>
+            </div>
+            <div id="memo-composer" class="border-top bg-body-tertiary p-2">
+                <div class="d-flex gap-2 align-items-end">
+                    <textarea id="memoTextInput" class="form-control" placeholder="Enter memo..." rows="1" style="resize: none; max-height: 200px;"></textarea>
+                    <button id="memoSendBtn" class="btn btn-primary">
+                        <i class="bi bi-send"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    (CDOM.ID("memoProviderSelect") as HTMLSelectElement).addEventListener("change", memoPopulateModelSelect);
+    CDOM.ID("memoSendBtn").addEventListener("click", memoSend);
+    CDOM.ID("memoTextInput").addEventListener("keydown", (ev: KeyboardEvent) => {
+        if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); memoSend(); }
+    });
+    CDOM.ID("memo-auth-overlay").addEventListener("keydown", (e) => e.stopPropagation());
+    CDOM.ID("memoAuthSubmitBtn").addEventListener("click", memoDoAuth);
+    (CDOM.ID("memoAuthPwInput") as HTMLInputElement).addEventListener("keydown", (ev: KeyboardEvent) => {
+        if (ev.key === "Enter") memoDoAuth();
+    });
+    memoRenderEmptyLog();
+}
+
+memoEnsureLayout();
+let memoInited = false;
+let memoSyncedRootUrl: string | null = null;
+function memoTryInit() {
+    if (memoInited) return;
+    memoInited = true;
+    memoSyncedRootUrl = g_fileWebRootUrl;
+    memoShowAuthOrLoad();
+}
+memoTab.addEventListener("shown.bs.tab", memoTryInit);
+if (memoTab.classList.contains("active")) memoTryInit();
+
+// RDP 사이드바에서 다른 서버로 전환되면(ConnectFileHomeUrl) Memo도 그 서버 기준으로 다시 로드한다.
+function memoNotifyRootChanged() {
+    if (!memoInited || memoSyncedRootUrl === g_fileWebRootUrl) return;
+    memoSyncedRootUrl = g_fileWebRootUrl;
+    memoLoadGen++;
+    memoProviders = [];
+    memoRenderEmptyLog();
+    memoShowAuthOrLoad();
+}

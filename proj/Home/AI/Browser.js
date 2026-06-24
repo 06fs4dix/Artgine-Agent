@@ -1,6 +1,6 @@
-import { CFecth } from "../../../Artgine/artgine/network/CFecth.js";
-import { CPath } from "../../../Artgine/artgine/basic/CPath.js";
-import { getAuthToken, setAuthToken, removeAuthToken } from "../../../Artgine/artgine/server/CAuthToken.js";
+import { CFecth } from "../../../artgine/network/CFecth.js";
+import { CPath } from "../../../artgine/basic/CPath.js";
+import { getAuthToken, setAuthToken, removeAuthToken } from "../../../artgine/server/CAuthToken.js";
 const params = new URLSearchParams(location.search);
 const SESSION_ID = params.get('session') || '';
 const READONLY = params.get('readonly') === '1';

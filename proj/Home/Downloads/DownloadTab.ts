@@ -1,6 +1,6 @@
-import { CDOM } from '../../../Artgine/artgine/basic/CDOM.js';
-import { CFecth } from '../../../Artgine/artgine/network/CFecth.js';
-import { CAlert } from '../../../Artgine/artgine/basic/CAlert.js';
+import { CDOM } from '../../../artgine/basic/CDOM.js';
+import { CFecth } from '../../../artgine/network/CFecth.js';
+import { CAlert } from '../../../artgine/basic/CAlert.js';
 
 // ── UI 마운트 ──────────────────────────────────────────────────────────────
 export function MountDownloadTab(rootId: string) {

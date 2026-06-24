@@ -1,8 +1,8 @@
-import "../../Artgine/artgine/artgine.js";
-import { CClass } from "../../Artgine/artgine/basic/CClass.js";
+import "../../artgine/artgine.js";
+import { CClass } from "../../artgine/basic/CClass.js";
 import { MountDownloadTab } from "./Downloads/DownloadTab.js";
 CClass.Push(MountDownloadTab);
-import { CPreferences } from "../../Artgine/artgine/basic/CPreferences.js";
+import { CPreferences } from "../../artgine/basic/CPreferences.js";
 var gPF = new CPreferences();
 gPF.mTargetWidth = 0;
 gPF.mTargetHeight = 0;
@@ -18,23 +18,23 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mqp8hov7_4";
-import { CAtelier } from "../../Artgine/artgine/app/CAtelier.js";
+gPF.mVersion = "mqs1uleo_2";
+import { CAtelier } from "../../artgine/app/CAtelier.js";
 var gAtl = new CAtelier();
 gAtl.mPF = gPF;
 await gAtl.Init([], "");
-import { CConfirm, CModal } from "../../Artgine/artgine/basic/CModal.js";
-import { CUtilWeb } from "../../Artgine/artgine/util/CUtilWeb.js";
-import { CStorage } from "../../Artgine/artgine/system/CStorage.js";
-import { CAlert } from "../../Artgine/artgine/basic/CAlert.js";
-import { CDOM } from "../../Artgine/artgine/basic/CDOM.js";
-import { CFecth } from "../../Artgine/artgine/network/CFecth.js";
-import { CPath } from "../../Artgine/artgine/basic/CPath.js";
-import { getAuthToken, setAuthToken, removeAuthToken } from "../../Artgine/artgine/server/CAuthToken.js";
-import { CFileViewer, CMDViewer, CSheetViewer, CModalStackMsg, CModalMusic } from "../../Artgine/artgine/util/CModalUtil.js";
-import { CPWA } from '../../Artgine/artgine/system/CPWA.js';
-import { Bootstrap } from "../../Artgine/artgine/basic/Bootstrap.js";
-import { CTooltip } from "../../Artgine/artgine/util/CTooltip.js";
+import { CSing, CSingOption } from "../../artgine/server/CSing.js";
+import { CConfirm, CModal } from "../../artgine/basic/CModal.js";
+import { CUtilWeb } from "../../artgine/util/CUtilWeb.js";
+import { CStorage } from "../../artgine/system/CStorage.js";
+import { CAlert } from "../../artgine/basic/CAlert.js";
+import { CDOM } from "../../artgine/basic/CDOM.js";
+import { CFecth } from "../../artgine/network/CFecth.js";
+import { CPath } from "../../artgine/basic/CPath.js";
+import { getAuthToken, setAuthToken, removeAuthToken } from "../../artgine/server/CAuthToken.js";
+import { CFileViewer, CMDViewer, CSheetViewer, CModalStackMsg, CModalMusic } from "../../artgine/util/CModalUtil.js";
+import { CPWA } from '../../artgine/system/CPWA.js';
+import { Bootstrap } from "../../artgine/basic/Bootstrap.js";
 if (gPF.mServer != "webServer")
     CAlert.E("Server setting is invalid.");
 CUtilWeb.Parameter("");
@@ -199,12 +199,22 @@ function runHomeHotkey(key) {
         case 'F4':
             showTab('ai-tab');
             return true;
+        case 'F7':
+            showTab('board-tab');
+            return true;
     }
     return false;
 }
 function postFrameVisible(f, visible) {
     try {
         f?.contentWindow?.postMessage({ type: 'frame-visibility', visible }, '*');
+    }
+    catch (_) { }
+}
+function postFrameMessage(key, msg) {
+    const f = iframePool.get(key);
+    try {
+        f?.contentWindow?.postMessage(msg, '*');
     }
     catch (_) { }
 }
@@ -240,6 +250,7 @@ function destroyPooledFrame(ctx, key) {
         ctx.setActiveKey(null);
     ctx.updatePlaceholder();
 }
+const noFocusTermKeys = new Set();
 function isAiTabActive() { return CDOM.ID('ai-tab').classList.contains('active'); }
 function isBrowserSubtabActive() { return CDOM.ID('ai-browser-subtab').classList.contains('active'); }
 function updateBrowserFrameVisibility() {
@@ -258,6 +269,14 @@ const aiFrameCtx = {
         f.setAttribute('allow', 'clipboard-read; clipboard-write');
         f.addEventListener('load', () => {
             const isTerm = key.startsWith('term:') || key.startsWith('term-new:');
+            if (isTerm) {
+                if (noFocusTermKeys.has(key)) {
+                    noFocusTermKeys.delete(key);
+                }
+                else {
+                    postFrameMessage(key, { type: 'focus-input' });
+                }
+            }
             try {
                 f.contentWindow?.addEventListener('keydown', (e) => {
                     if (isTerm && handleTermSidebarShortcut(e))
@@ -294,7 +313,7 @@ const aiFrameCtx = {
                             }
                         }
                     }
-                    if (!isTerm && (e.key === 'F1' || e.key === 'F2' || e.key === 'F3' || e.key === 'F4')) {
+                    if (!isTerm && (e.key === 'F1' || e.key === 'F2' || e.key === 'F3' || e.key === 'F4' || e.key === 'F7')) {
                         e.preventDefault();
                         runHomeHotkey(e.key);
                     }
@@ -320,12 +339,16 @@ function destroyFrame(key) {
 function focusActiveFrame() {
     if (!activeFrameKey)
         return;
+    if (activeFrameKey.startsWith('term:') || activeFrameKey.startsWith('term-new:')) {
+        postFrameMessage(activeFrameKey, { type: 'focus-input' });
+        return;
+    }
     const f = iframePool.get(activeFrameKey);
     if (!f)
         return;
     try {
         f.contentWindow?.focus();
-        const input = f.contentDocument?.querySelector('#mi-bar textarea, textarea, input');
+        const input = f.contentDocument?.querySelector('textarea, input');
         if (input) {
             input.focus();
             return;
@@ -458,7 +481,6 @@ async function aiRefreshSessions() {
                     delConfirm.Open();
                 },
                 popup: { url: () => `${CPath.WebRootArtgineUrl()}artgine/server/html/Chat.html?session=${encodeURIComponent(s.sessionId)}`, title: s.title, winName: `chat_${s.sessionId}` },
-                tooltipText: s.title + (s.lastMsg ? '\n\n' + s.lastMsg : ''),
             });
             aiSessionList.appendChild(item);
         }
@@ -649,14 +671,18 @@ async function termStartNew(_mode = 'cmd', initialWorkingDir) {
             doOpen(); });
     }, MODAL_DOM_DELAY);
 }
-async function termConnectSession(port) {
+async function termConnectSession(port, focusInput = true) {
     const key = `term:${port}`;
     if (iframePool.has(key)) {
         showFrame(key, '');
         aiRefreshSessions();
         termRefreshSessions();
+        if (focusInput)
+            postFrameMessage(key, { type: 'focus-input' });
         return;
     }
+    if (!focusInput)
+        noFocusTermKeys.add(key);
     showFrame(key, `${CPath.WebRootUrl()}cmd/terminal-proxy?port=${port}`);
     aiRefreshSessions();
     termRefreshSessions();
@@ -765,7 +791,6 @@ async function termRefreshSessions() {
                 onShare: () => termShowShareLink(s.port),
                 onDelete: () => termConfirmKillSession(s.port),
                 popup: { url: () => `${CPath.WebRootUrl()}cmd/terminal-proxy?port=${s.port}`, title: s.key || s.mode || 'Terminal', winName: `term_${s.port}` },
-                tooltipText: s.lastMsg || '(empty)',
             });
             termSessionList.appendChild(item);
         }
@@ -819,6 +844,7 @@ function showShareLinkModal(header, descHtml, shareUrl) {
         </div>
     `);
     modal.SetTitle(CModal.eTitle.TextClose);
+    modal.SetSize(480, 160);
     modal.Open(CModal.ePos.Center);
     setTimeout(() => {
         const input = document.getElementById(uid);
@@ -878,12 +904,6 @@ function createSessionItem(spec) {
     item.addEventListener('mouseenter', () => { if (!spec.isActive)
         item.classList.add('bg-body-secondary'); });
     item.addEventListener('mouseleave', () => item.classList.remove('bg-body-secondary'));
-    if (spec.tooltipText !== undefined) {
-        const tipEl = document.createElement('div');
-        tipEl.style.cssText = 'white-space:pre-wrap;max-width:280px;font-size:0.82rem;';
-        tipEl.textContent = spec.tooltipText;
-        new CTooltip(tipEl, item, CTooltip.eTrigger.Hover, CTooltip.ePlacement.Left);
-    }
     return item;
 }
 termNewBtn.addEventListener('click', () => termStartNew('cmd'));
@@ -1193,7 +1213,7 @@ function goNextSession(dir) {
         const nxt = curIdx === -1 ? 0 : Math.max(0, Math.min(items.length - 1, curIdx + dir));
         if (nxt === curIdx)
             return false;
-        termConnectSession(parseInt(items[nxt].dataset.port));
+        termConnectSession(parseInt(items[nxt].dataset.port), false);
         items[nxt].scrollIntoView({ block: 'nearest' });
         return true;
     }
@@ -1276,7 +1296,7 @@ document.addEventListener('keydown', (e) => {
         goNextSession(e.key === 'ArrowUp' ? -1 : 1);
         return;
     }
-    if (e.key === 'F1' || e.key === 'F2' || e.key === 'F3' || e.key === 'F4') {
+    if (e.key === 'F1' || e.key === 'F2' || e.key === 'F3' || e.key === 'F4' || e.key === 'F7') {
         e.preventDefault();
         runHomeHotkey(e.key);
     }
@@ -1349,7 +1369,7 @@ aiAuthSubmitBtn.addEventListener('click', aiDoAuth);
 aiAuthPwInput.addEventListener('keydown', (e) => { if (e.key === 'Enter')
     aiDoAuth(); });
 CDOM.ID("ai-chat-subtab").addEventListener("shown.bs.tab", () => aiRefreshSessions());
-CDOM.ID("ai-term-subtab").addEventListener("shown.bs.tab", () => { termRefreshSessions(); schedRefresh(); });
+CDOM.ID("ai-term-subtab").addEventListener("shown.bs.tab", () => { termRefreshSessions(); schedRefresh(); focusActiveFrame(); });
 CDOM.ID("ai-browser-subtab").addEventListener("shown.bs.tab", () => browserRefreshList());
 const browserNewBtn = CDOM.ID("browserNewBtn");
 const browserSessionList = CDOM.ID("browserSessionList");
@@ -1585,8 +1605,13 @@ function rdpRenderList() {
     const localItem = document.createElement('div');
     localItem.className = 'ai-session-item d-flex align-items-center gap-2 px-2 py-2 rounded'
         + (activeRdpFrameKey === 'rdp:local' ? ' bg-primary-subtle' : '');
-    localItem.innerHTML = `<i class="bi bi-pc-display"></i><span class="flex-grow-1">Local</span>`;
+    localItem.innerHTML = `<i class="bi bi-pc-display"></i><span class="flex-grow-1">Local</span>`
+        + `<button type="button" class="btn btn-sm btn-link text-secondary p-0" data-act="local-link" title="Show accessible link"><i class="bi bi-link-45deg"></i></button>`;
     localItem.addEventListener('click', () => rdpOpenLocal());
+    localItem.querySelector('[data-act="local-link"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        rdpShowLocalAccessLink();
+    });
     rdpSessionList.appendChild(localItem);
     rdpRemotes.forEach((r, i) => {
         const key = `rdp:remote:${i}`;
@@ -1604,6 +1629,74 @@ function rdpRenderList() {
             popup: { url: () => `${ParseFileHomeUrl(r.url).webRootUrl}artgine/server/html/RemoteDesktop.html`, title: r.url, winName: `rdp_${i}` },
         });
         rdpSessionList.appendChild(item);
+    });
+}
+async function rdpResolveAccessibleUrl() {
+    const loc = window.location;
+    const isLocalHost = loc.hostname === 'localhost' || loc.hostname === '127.0.0.1' || loc.hostname === '::1';
+    if (!isLocalHost)
+        return { url: loc.href, blocked: false };
+    let publicIp = '';
+    try {
+        publicIp = (await (await fetch('https://api.ipify.org?format=text')).text()).trim();
+    }
+    catch (_) {
+        return { url: '', blocked: true };
+    }
+    if (!publicIp)
+        return { url: '', blocked: true };
+    const port = loc.port ? `:${loc.port}` : '';
+    const url = `${loc.protocol}//${publicIp}${port}${loc.pathname}${loc.search}`;
+    const reachable = await rdpCheckPortOpen(url);
+    return { url, blocked: !reachable };
+}
+function rdpCheckPortOpen(url, timeoutMs = 4000) {
+    return new Promise(resolve => {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => { ctrl.abort(); resolve(false); }, timeoutMs);
+        fetch(url, { mode: 'no-cors', signal: ctrl.signal })
+            .then(() => { clearTimeout(timer); resolve(true); })
+            .catch(() => { clearTimeout(timer); resolve(false); });
+    });
+}
+async function rdpShowLocalAccessLink() {
+    const boxId = `rdp_local_link_${Date.now()}`;
+    const modal = new CModal();
+    modal.SetHeader('Local Access Link');
+    modal.SetBody(`<div id="${boxId}" class="small text-secondary">Checking accessible link...</div>`);
+    modal.SetTitle(CModal.eTitle.TextClose);
+    modal.SetSize(480, 160);
+    modal.Open(CModal.ePos.Center);
+    const { url, blocked } = await rdpResolveAccessibleUrl();
+    const box = document.getElementById(boxId);
+    if (!box)
+        return;
+    if (blocked || !url) {
+        box.innerHTML = `<div class="text-danger">Port appears to be blocked from outside access. Please check port forwarding.</div>`;
+        return;
+    }
+    const inputId = `${boxId}_input`;
+    const copyId = `${boxId}_copy`;
+    box.className = '';
+    box.innerHTML = `
+        <div class="mb-2 small text-secondary">Accessible link for this page:</div>
+        <div class="input-group">
+            <input id="${inputId}" type="text" class="form-control form-control-sm" readonly value="${aiEscapeHtml(url)}">
+            <button id="${copyId}" class="btn btn-outline-secondary btn-sm" title="Copy"><i class="bi bi-clipboard"></i></button>
+        </div>`;
+    const input = document.getElementById(inputId);
+    const copyBtn = document.getElementById(copyId);
+    input?.addEventListener('click', () => input.select());
+    copyBtn?.addEventListener('click', async () => {
+        try {
+            await navigator.clipboard.writeText(url);
+        }
+        catch {
+            input?.select();
+            document.execCommand('copy');
+        }
+        copyBtn.innerHTML = '<i class="bi bi-check2"></i>';
+        setTimeout(() => { copyBtn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 1500);
     });
 }
 function rdpShowShareLink(remoteUrl) {
@@ -2075,6 +2168,7 @@ async function ConnectFileHomeUrl(input) {
     }
     await LoadFileList(path);
     refreshFileAuthState();
+    memoNotifyRootChanged();
 }
 window["ConnectFileHomeUrl"] = ConnectFileHomeUrl;
 ConnectFileHomeUrl(CUtilWeb.Parameter("FileHomeUrl") ?? undefined);
@@ -2765,3 +2859,496 @@ function NextPhoto() {
     CAlert.Info("더 이상 없습니다.");
 }
 window["NextPhoto"] = NextPhoto;
+let option = new CSingOption();
+option.mFindPWBtn = "pass";
+CSing.On(CSing.eEvent.State, () => {
+    if (CSing.PrivateKey() == null)
+        CDOM.ID("login-btn").innerText = "Login";
+    else
+        CDOM.ID("login-btn").innerText = "Logout";
+});
+CSing.On(CSing.eEvent.Init, () => {
+    if (CSing.PrivateKey() == null)
+        CDOM.ID("login-btn").innerText = "Login";
+    else
+        CDOM.ID("login-btn").innerText = "Logout";
+});
+CSing.On(CSing.eEvent.JoinInit, () => {
+    loginModal.SetPosition(CModal.ePos.Center);
+});
+CSing.On(CSing.eEvent.Insert, () => {
+    loginModal.Open();
+    CSing.ModifyMode();
+});
+let html = await CSing.InitForm(option);
+let loginModal = new CModal();
+loginModal.SetHeader("Sing");
+loginModal.SetBody(html);
+loginModal.SetTitle(CModal.eTitle.TextClose);
+loginModal.SetCloseToHide(true);
+loginModal.SetSize(320, 640);
+CDOM.ID("login-btn").addEventListener("click", () => {
+    loginModal.Open();
+});
+const memoTab = CDOM.ID("board-tab");
+const memoPanel = CDOM.ID("board");
+let memoProviders = [];
+let memoLoadGen = 0;
+function memoFormatTime(_t) {
+    const s = String(_t);
+    if (s.length < 14)
+        return s;
+    return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)} ${s.slice(8, 10)}:${s.slice(10, 12)}`;
+}
+async function memoGetJson(_url) {
+    const token = GetFileToken();
+    const url = token ? _url + (_url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token) : _url;
+    const r = await authedFetch(url);
+    if (r.status === 401) {
+        removeAuthToken(g_fileWebRootUrl);
+        memoShowAuthOrLoad();
+        return { ok: false };
+    }
+    return await r.json();
+}
+async function memoPostJson(_url, _body) {
+    const r = await authedFetch(_url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ..._body, token: GetFileToken() }) });
+    if (r.status === 401) {
+        removeAuthToken(g_fileWebRootUrl);
+        memoShowAuthOrLoad();
+        return { ok: false };
+    }
+    return await r.json();
+}
+async function memoLoadProviders() {
+    if (memoProviders.length > 0) {
+        memoPopulateProviderSelect();
+        return;
+    }
+    const gen = memoLoadGen;
+    try {
+        const j = await memoGetJson(FileApiUrl('ai/chat/providers'));
+        if (gen !== memoLoadGen)
+            return;
+        if (j.ok) {
+            memoProviders = j.providers;
+            memoPopulateProviderSelect();
+        }
+    }
+    catch (e) {
+        console.error('memo providers error:', e);
+    }
+}
+async function memoShowAuthOrLoad() {
+    const overlay = CDOM.ID("memo-auth-overlay");
+    if (overlay == null)
+        return;
+    const authed = await fileCheckAuth();
+    if (!authed) {
+        refreshFileAuthState();
+        const wasVisible = overlay.style.display === 'flex';
+        overlay.style.display = 'flex';
+        if (!wasVisible) {
+            const pwInput = CDOM.ID("memoAuthPwInput");
+            const msgEl = CDOM.ID("memoAuthMsg");
+            pwInput.value = '';
+            msgEl.textContent = '';
+            setTimeout(() => pwInput.focus(), 50);
+        }
+    }
+    else {
+        refreshFileAuthState();
+        overlay.style.display = 'none';
+        memoLoadProviders();
+        memoLoadRecentLog();
+    }
+}
+async function memoDoAuth() {
+    const pwInput = CDOM.ID("memoAuthPwInput");
+    const msgEl = CDOM.ID("memoAuthMsg");
+    const submitBtn = CDOM.ID("memoAuthSubmitBtn");
+    const pw = pwInput.value;
+    if (!pw)
+        return;
+    submitBtn.disabled = true;
+    msgEl.textContent = '';
+    try {
+        const j = await CFecth.Exe(FileApiUrl("auth/login"), { password: pw }, "json");
+        if (j.ok) {
+            SetFileToken(j.token);
+            refreshFileAuthState();
+            CDOM.ID("memo-auth-overlay").style.display = 'none';
+            memoLoadProviders();
+            memoLoadRecentLog();
+            warnIfDefaultAuthPassword(pw);
+        }
+        else {
+            msgEl.textContent = j.msg || 'Wrong password';
+        }
+    }
+    catch {
+        msgEl.textContent = 'Server error';
+    }
+    submitBtn.disabled = false;
+}
+function memoPopulateProviderSelect() {
+    const providerEl = CDOM.ID("memoProviderSelect");
+    if (providerEl == null)
+        return;
+    providerEl.innerHTML = memoProviders.map(p => `<option value="${p.id}" ${p.available ? '' : 'disabled'}>${p.id}${p.available ? '' : ' (unavailable)'}</option>`).join('');
+    memoPopulateModelSelect();
+}
+function memoPopulateModelSelect() {
+    const providerEl = CDOM.ID("memoProviderSelect");
+    const modelEl = CDOM.ID("memoModelSelect");
+    if (providerEl == null || modelEl == null)
+        return;
+    const info = memoProviders.find(p => p.id === providerEl.value);
+    const models = info ? info.models : [];
+    modelEl.innerHTML = models.map(m => `<option value="${m.value}">${aiEscapeHtml(m.label)}</option>`).join('');
+    if (models.length > 0) {
+        modelEl.value = models[Math.floor(models.length / 2)].value;
+    }
+}
+async function memoLoadRecentLog() {
+    const gen = memoLoadGen;
+    try {
+        const j = await memoGetJson(FileApiUrl('Memo/List?n=30'));
+        if (gen !== memoLoadGen)
+            return;
+        if (!j.ok)
+            return;
+        const list = j.list;
+        const logEl = CDOM.ID("memo-log");
+        if (logEl == null)
+            return;
+        logEl.innerHTML = '';
+        if (list.length === 0) {
+            memoRenderEmptyLog();
+            return;
+        }
+        for (let i = list.length - 1; i >= 0; i--) {
+            const r = list[i];
+            const wrap = document.createElement('div');
+            wrap.style.cursor = 'pointer';
+            wrap.innerHTML = `
+                <div class="text-secondary small text-uppercase mb-1" style="letter-spacing: .5px;">${r.headOffset !== r.selfOffset ? `#${r.headOffset}-#${r.selfOffset}` : `#${r.selfOffset}`} · ${memoFormatTime(r.chatTime)}</div>
+                <div class="msg-bubble p-3 rounded border-start border-4 border-primary bg-primary-subtle">${aiEscapeHtml(r.original)}</div>
+                ${r.keywords && r.keywords.length > 0 ? `<div class="mt-2 d-flex flex-wrap gap-1">${r.keywords.map(k => `<span class="badge bg-secondary">#${k}</span>`).join('')}</div>` : ''}
+            `;
+            wrap.addEventListener('click', () => memoOpenChainModal(r.selfOffset));
+            logEl.appendChild(wrap);
+        }
+        memoScrollBottom();
+    }
+    catch (e) {
+        console.error('memo recent log error:', e);
+    }
+}
+function memoChainBodyHtml(_chain) {
+    const range = _chain.length > 1 ? `#${_chain[0].selfOffset} - #${_chain[_chain.length - 1].selfOffset}` : `#${_chain[0].selfOffset}`;
+    return `
+        <div class="d-flex flex-column h-100">
+            <div class="text-secondary small text-uppercase px-2 pt-2" style="letter-spacing: .5px;">${range}</div>
+            <div id="memoChainLog" class="flex-grow-1 overflow-auto d-flex flex-column gap-2 p-2">
+                ${_chain.map(r => `
+                    <div class="position-relative">
+                        <div class="text-secondary small text-uppercase mb-1" style="letter-spacing: .5px;">#${r.selfOffset} · ${memoFormatTime(r.chatTime)}</div>
+                        <button type="button" class="btn-close memoChainDeleteBtn" data-offset="${r.selfOffset}" aria-label="Delete" style="position:absolute; top:0; right:0;"></button>
+                        <div class="msg-bubble p-3 rounded border-start border-4 border-primary bg-primary-subtle" style="white-space: pre-wrap; word-wrap: break-word;">${aiEscapeHtml(r.original)}</div>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="border-top p-2 d-flex gap-2 align-items-end">
+                <textarea id="memoChainInput" class="form-control" placeholder="Continue this conversation..." rows="1" style="resize: none; max-height: 160px;"></textarea>
+                <button id="memoChainSendBtn" class="btn btn-primary"><i class="bi bi-send"></i></button>
+            </div>
+        </div>
+    `;
+}
+async function memoRefreshChainModal(_modal, _selfOffset) {
+    const j = await memoGetJson(FileApiUrl('Memo/Get?offset=' + _selfOffset));
+    if (!j.ok)
+        return;
+    const chain = j.chain;
+    if (chain.length === 0) {
+        _modal.Close();
+        return;
+    }
+    const tail = chain.find(r => r.nextOffset === 0) || chain[chain.length - 1];
+    _modal.SetBody(memoChainBodyHtml(chain));
+    const body = _modal.GetBody();
+    const logEl = body.querySelector('#memoChainLog');
+    logEl.scrollTop = logEl.scrollHeight;
+    const input = body.querySelector('#memoChainInput');
+    const sendBtn = body.querySelector('#memoChainSendBtn');
+    const send = () => memoChainSend(_modal, input, sendBtn, tail.selfOffset);
+    sendBtn.addEventListener('click', send);
+    input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' && !ev.shiftKey) {
+            ev.preventDefault();
+            send();
+        }
+    });
+    setTimeout(() => input.focus(), 50);
+    body.querySelectorAll('.memoChainDeleteBtn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const offset = Number(btn.dataset.offset);
+            memoChainDelete(_modal, chain, offset);
+        });
+    });
+}
+async function memoChainDelete(_modal, _chain, _offset) {
+    if (!confirm('이 메모를 삭제할까요?'))
+        return;
+    try {
+        const j = await memoPostJson(FileApiUrl('Memo/Delete'), { offset: _offset });
+        if (!j.ok) {
+            console.error('memo delete error:', j.msg);
+            return;
+        }
+        await memoLoadRecentLog();
+        const remaining = _chain.find(r => r.selfOffset !== _offset);
+        if (remaining == null) {
+            _modal.Close();
+            return;
+        }
+        await memoRefreshChainModal(_modal, remaining.selfOffset);
+    }
+    catch (e) {
+        console.error('memo delete error:', e);
+    }
+}
+async function memoChainSend(_modal, _input, _btn, _continueOffset) {
+    const text = _input.value.trim();
+    if (!text)
+        return;
+    _input.disabled = true;
+    _btn.disabled = true;
+    try {
+        const j = await memoPostJson(FileApiUrl('Memo/Chat'), {
+            mode: 'write',
+            text,
+            continueOffset: _continueOffset,
+        });
+        if (!j.ok) {
+            console.error('memo chain send error:', j.msg);
+            return;
+        }
+        await memoLoadRecentLog();
+        await memoRefreshChainModal(_modal, _continueOffset);
+    }
+    catch (e) {
+        console.error('memo chain send error:', e);
+    }
+    finally {
+        _input.disabled = false;
+        _btn.disabled = false;
+    }
+}
+async function memoOpenChainModal(_selfOffset) {
+    const modal = new CModal("memoChainModal");
+    modal.SetTitle(CModal.eTitle.TextFullClose);
+    modal.SetHeader("Memo");
+    modal.SetSize(480, 600);
+    modal.SetBody('<div class="text-center text-secondary p-4">Loading...</div>');
+    modal.Open(CModal.ePos.Center);
+    await memoRefreshChainModal(modal, _selfOffset);
+}
+function memoScrollBottom() {
+    const el = CDOM.ID("memo-content");
+    if (el)
+        el.scrollTop = el.scrollHeight;
+}
+let memoPendingEl = null;
+function memoAppendBubble(_role, _text, _pending) {
+    const logEl = CDOM.ID("memo-log");
+    if (logEl == null)
+        return null;
+    const placeholder = logEl.querySelector('#memoEmptyState');
+    if (placeholder)
+        placeholder.remove();
+    const roleLabel = _role === 'ai' ? 'Memo' : _role === 'system' ? 'System' : '';
+    const bubbleCls = _role === 'user'
+        ? _pending
+            ? 'msg-bubble p-3 rounded border-start border-4 border-secondary bg-body-tertiary memo-pending'
+            : 'msg-bubble p-3 rounded border-start border-4 border-primary bg-primary-subtle'
+        : _role === 'ai'
+            ? 'msg-bubble p-3 rounded border-start border-4 border-secondary bg-body-tertiary'
+            : 'msg-bubble p-2 px-3 rounded border border-danger bg-danger-subtle text-danger-emphasis';
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `
+        <div class="text-secondary small text-uppercase mb-1" style="letter-spacing: .5px;">${roleLabel}</div>
+        <div class="${bubbleCls}">${aiEscapeHtml(_text)}</div>
+    `;
+    logEl.appendChild(wrap);
+    memoScrollBottom();
+    return wrap;
+}
+function memoRenderEmptyLog() {
+    const logEl = CDOM.ID("memo-log");
+    if (logEl == null)
+        return;
+    logEl.innerHTML = '';
+    const empty = document.createElement('div');
+    empty.id = 'memoEmptyState';
+    empty.className = 'text-center text-secondary mt-5';
+    empty.innerHTML = `
+        <i class="bi bi-journal-text fs-1 d-block mb-2"></i>
+        <div>Enter a new memo.</div>
+    `;
+    logEl.appendChild(empty);
+}
+async function memoSend() {
+    const textEl = CDOM.ID("memoTextInput");
+    const modeEl = CDOM.ID("memoModeSelect");
+    const providerEl = CDOM.ID("memoProviderSelect");
+    const modelEl = CDOM.ID("memoModelSelect");
+    const sendBtn = CDOM.ID("memoSendBtn");
+    const text = textEl.value.trim();
+    if (!text)
+        return;
+    memoPendingEl = memoAppendBubble('user', text, true);
+    textEl.value = '';
+    sendBtn.disabled = true;
+    try {
+        const j = await memoPostJson(FileApiUrl('Memo/Chat'), {
+            provider: providerEl.value || undefined,
+            model: modelEl.value || undefined,
+            mode: modeEl.value,
+            text,
+        });
+        if (!j.ok) {
+            memoAppendBubble('system', j.msg || 'Error');
+            return;
+        }
+        if (j.result === 'saved') {
+            if (memoPendingEl) {
+                memoPendingEl.remove();
+                memoPendingEl = null;
+            }
+            await memoLoadRecentLog();
+        }
+        else {
+            if (memoPendingEl) {
+                const bubble = memoPendingEl.querySelector('.msg-bubble');
+                if (bubble)
+                    bubble.className = 'msg-bubble p-3 rounded border-start border-4 border-primary bg-primary-subtle';
+                memoPendingEl = null;
+            }
+            memoAppendBubble('ai', j.result);
+        }
+    }
+    catch (e) {
+        console.error('memo chat error:', e);
+        memoAppendBubble('system', 'Network error');
+    }
+    finally {
+        sendBtn.disabled = false;
+    }
+}
+function memoEnsureLayout() {
+    if (CDOM.ID("memo-content"))
+        return;
+    memoTab.dataset.en = "Memo";
+    memoTab.setAttribute("aria-controls", "board");
+    memoTab.innerHTML = '<i class="bi bi-journal-text"></i> Memo<span class="text-secondary" style="font-size:0.7em;">F7</span>';
+    memoPanel.classList.add("position-relative");
+    memoPanel.style.overflow = "hidden";
+    memoPanel.innerHTML = `
+        <style>
+            #memo-content .msg-bubble { white-space: pre-wrap; word-wrap: break-word; line-height: 1.6; }
+            #memo-content .msg-bubble pre { background: var(--bs-tertiary-bg); padding: .5rem; border-radius: .25rem; overflow-x: auto; }
+            #memo-content .msg-bubble code { font-family: var(--bs-font-monospace); font-size: .875em; }
+            #memo-content .memo-pending { opacity: 0.5; }
+        </style>
+        <div id="memo-auth-overlay" class="position-absolute align-items-center justify-content-center"
+             style="inset:0; z-index:20; background:var(--bs-body-bg); display:none;">
+            <div class="card shadow" style="width:320px;">
+                <div class="card-body">
+                    <h5 class="card-title mb-3"><i class="bi bi-shield-lock"></i> Authentication</h5>
+                    <div class="mb-3">
+                        <input type="password" id="memoAuthPwInput" class="form-control" placeholder="Password">
+                    </div>
+                    <div id="memoAuthMsg" class="text-danger small mb-2" style="min-height:1.2em;"></div>
+                    <button id="memoAuthSubmitBtn" class="btn btn-primary w-100">Sign In</button>
+                </div>
+            </div>
+        </div>
+        <div id="memo-frame-container" class="d-flex flex-column overflow-hidden position-absolute bg-body text-body" style="inset:0;" data-bs-theme="dark">
+            <div id="memo-topbar" class="d-flex align-items-center gap-2 p-2 border-bottom bg-body-tertiary">
+                <select id="memoModeSelect" class="form-select form-select-sm w-auto">
+                    <option value="auto">Auto</option>
+                    <option value="write">Write</option>
+                    <option value="read">Read</option>
+                </select>
+                <select id="memoProviderSelect" class="form-select form-select-sm w-auto"></select>
+                <select id="memoModelSelect" class="form-select form-select-sm w-auto"></select>
+            </div>
+            <div id="memo-content" class="flex-grow-1 overflow-auto p-3 bg-body">
+                <div id="memo-log" class="d-flex flex-column gap-2">
+                    <div id="memoEmptyState" class="text-center text-secondary mt-5">
+                        <i class="bi bi-journal-text fs-1 d-block mb-2"></i>
+                        <div>Enter a new memo.</div>
+                    </div>
+                </div>
+            </div>
+            <div id="memo-composer" class="border-top bg-body-tertiary p-2">
+                <div class="d-flex gap-2 align-items-end">
+                    <textarea id="memoTextInput" class="form-control" placeholder="Enter memo..." rows="1" style="resize: none; max-height: 200px;"></textarea>
+                    <button id="memoSendBtn" class="btn btn-primary">
+                        <i class="bi bi-send"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    CDOM.ID("memoProviderSelect").addEventListener("change", memoPopulateModelSelect);
+    CDOM.ID("memoSendBtn").addEventListener("click", memoSend);
+    CDOM.ID("memoTextInput").addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" && !ev.shiftKey) {
+            ev.preventDefault();
+            memoSend();
+        }
+    });
+    CDOM.ID("memo-auth-overlay").addEventListener("keydown", (e) => e.stopPropagation());
+    CDOM.ID("memoAuthSubmitBtn").addEventListener("click", memoDoAuth);
+    CDOM.ID("memoAuthPwInput").addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter")
+            memoDoAuth();
+    });
+    memoRenderEmptyLog();
+}
+memoEnsureLayout();
+let memoInited = false;
+let memoSyncedRootUrl = null;
+function memoTryInit() {
+    if (memoInited)
+        return;
+    memoInited = true;
+    memoSyncedRootUrl = g_fileWebRootUrl;
+    memoShowAuthOrLoad();
+}
+memoTab.addEventListener("shown.bs.tab", memoTryInit);
+if (memoTab.classList.contains("active"))
+    memoTryInit();
+function memoNotifyRootChanged() {
+    if (!memoInited || memoSyncedRootUrl === g_fileWebRootUrl)
+        return;
+    memoSyncedRootUrl = g_fileWebRootUrl;
+    memoLoadGen++;
+    memoProviders = [];
+    memoRenderEmptyLog();
+    memoShowAuthOrLoad();
+}
+let dlInited = false;
+CDOM.ID("download-tab").addEventListener("shown.bs.tab", () => {
+    if (dlInited)
+        return;
+    dlInited = true;
+    MountDownloadTab("download-root");
+});
+if (CDOM.ID("download-panel").classList.contains("active")) {
+    dlInited = true;
+    MountDownloadTab("download-root");
+}
