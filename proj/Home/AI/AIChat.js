@@ -8,9 +8,9 @@ let PROVIDER_INFO = {
 const LS_LAST_SID = 'ai.lastSessionId';
 const LS_PROVIDER = 'ai.provider';
 const LS_MODEL = 'ai.model';
-import { CFecth } from "../../../artgine/network/CFecth.js";
-import { CPath } from "../../../artgine/basic/CPath.js";
-import { getAuthToken, setAuthToken, removeAuthToken } from "../../../artgine/server/CAuthToken.js";
+import { CFecth } from "../../../Artgine/artgine/network/CFecth.js";
+import { CPath } from "../../../Artgine/artgine/basic/CPath.js";
+import { getAuthToken, setAuthToken, removeAuthToken } from "../../../Artgine/artgine/server/CAuthToken.js";
 let authToken = getAuthToken(CPath.WebRootUrl());
 function isStandaloneChat() {
     return window.parent === window;

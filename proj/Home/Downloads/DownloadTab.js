@@ -1,6 +1,6 @@
-import { CDOM } from '../../../artgine/basic/CDOM.js';
-import { CFecth } from '../../../artgine/network/CFecth.js';
-import { CAlert } from '../../../artgine/basic/CAlert.js';
+import { CDOM } from '../../../Artgine/artgine/basic/CDOM.js';
+import { CFecth } from '../../../Artgine/artgine/network/CFecth.js';
+import { CAlert } from '../../../Artgine/artgine/basic/CAlert.js';
 export function MountDownloadTab(rootId) {
     const root = CDOM.ID(rootId);
     if (!root)

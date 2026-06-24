@@ -1,8 +1,8 @@
-import "../../artgine/artgine.js";
-import { CClass } from "../../artgine/basic/CClass.js";
+import "../../Artgine/artgine/artgine.js";
+import { CClass } from "../../Artgine/artgine/basic/CClass.js";
 import { MountDownloadTab } from "./Downloads/DownloadTab.js";
 CClass.Push(MountDownloadTab);
-import { CPreferences } from "../../artgine/basic/CPreferences.js";
+import { CPreferences } from "../../Artgine/artgine/basic/CPreferences.js";
 var gPF = new CPreferences();
 gPF.mTargetWidth = 0;
 gPF.mTargetHeight = 0;
@@ -18,23 +18,22 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mqs1uleo_2";
-import { CAtelier } from "../../artgine/app/CAtelier.js";
+gPF.mVersion = "mqs28h34_2";
+import { CAtelier } from "../../Artgine/artgine/app/CAtelier.js";
 var gAtl = new CAtelier();
 gAtl.mPF = gPF;
 await gAtl.Init([], "");
-import { CSing, CSingOption } from "../../artgine/server/CSing.js";
-import { CConfirm, CModal } from "../../artgine/basic/CModal.js";
-import { CUtilWeb } from "../../artgine/util/CUtilWeb.js";
-import { CStorage } from "../../artgine/system/CStorage.js";
-import { CAlert } from "../../artgine/basic/CAlert.js";
-import { CDOM } from "../../artgine/basic/CDOM.js";
-import { CFecth } from "../../artgine/network/CFecth.js";
-import { CPath } from "../../artgine/basic/CPath.js";
-import { getAuthToken, setAuthToken, removeAuthToken } from "../../artgine/server/CAuthToken.js";
-import { CFileViewer, CMDViewer, CSheetViewer, CModalStackMsg, CModalMusic } from "../../artgine/util/CModalUtil.js";
-import { CPWA } from '../../artgine/system/CPWA.js';
-import { Bootstrap } from "../../artgine/basic/Bootstrap.js";
+import { CConfirm, CModal } from "../../Artgine/artgine/basic/CModal.js";
+import { CUtilWeb } from "../../Artgine/artgine/util/CUtilWeb.js";
+import { CStorage } from "../../Artgine/artgine/system/CStorage.js";
+import { CAlert } from "../../Artgine/artgine/basic/CAlert.js";
+import { CDOM } from "../../Artgine/artgine/basic/CDOM.js";
+import { CFecth } from "../../Artgine/artgine/network/CFecth.js";
+import { CPath } from "../../Artgine/artgine/basic/CPath.js";
+import { getAuthToken, setAuthToken, removeAuthToken } from "../../Artgine/artgine/server/CAuthToken.js";
+import { CFileViewer, CMDViewer, CSheetViewer, CModalStackMsg, CModalMusic } from "../../Artgine/artgine/util/CModalUtil.js";
+import { CPWA } from '../../Artgine/artgine/system/CPWA.js';
+import { Bootstrap } from "../../Artgine/artgine/basic/Bootstrap.js";
 if (gPF.mServer != "webServer")
     CAlert.E("Server setting is invalid.");
 CUtilWeb.Parameter("");
@@ -2859,37 +2858,6 @@ function NextPhoto() {
     CAlert.Info("더 이상 없습니다.");
 }
 window["NextPhoto"] = NextPhoto;
-let option = new CSingOption();
-option.mFindPWBtn = "pass";
-CSing.On(CSing.eEvent.State, () => {
-    if (CSing.PrivateKey() == null)
-        CDOM.ID("login-btn").innerText = "Login";
-    else
-        CDOM.ID("login-btn").innerText = "Logout";
-});
-CSing.On(CSing.eEvent.Init, () => {
-    if (CSing.PrivateKey() == null)
-        CDOM.ID("login-btn").innerText = "Login";
-    else
-        CDOM.ID("login-btn").innerText = "Logout";
-});
-CSing.On(CSing.eEvent.JoinInit, () => {
-    loginModal.SetPosition(CModal.ePos.Center);
-});
-CSing.On(CSing.eEvent.Insert, () => {
-    loginModal.Open();
-    CSing.ModifyMode();
-});
-let html = await CSing.InitForm(option);
-let loginModal = new CModal();
-loginModal.SetHeader("Sing");
-loginModal.SetBody(html);
-loginModal.SetTitle(CModal.eTitle.TextClose);
-loginModal.SetCloseToHide(true);
-loginModal.SetSize(320, 640);
-CDOM.ID("login-btn").addEventListener("click", () => {
-    loginModal.Open();
-});
 const memoTab = CDOM.ID("board-tab");
 const memoPanel = CDOM.ID("board");
 let memoProviders = [];
@@ -3340,15 +3308,4 @@ function memoNotifyRootChanged() {
     memoProviders = [];
     memoRenderEmptyLog();
     memoShowAuthOrLoad();
-}
-let dlInited = false;
-CDOM.ID("download-tab").addEventListener("shown.bs.tab", () => {
-    if (dlInited)
-        return;
-    dlInited = true;
-    MountDownloadTab("download-root");
-});
-if (CDOM.ID("download-panel").classList.contains("active")) {
-    dlInited = true;
-    MountDownloadTab("download-root");
 }
