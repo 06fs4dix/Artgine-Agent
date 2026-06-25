@@ -22,7 +22,7 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mqs28h34_2";
+gPF.mVersion = "mqthc3n0_4";
 
 import {CAtelier} from "../../Artgine/artgine/app/CAtelier.js";
 
@@ -88,6 +88,28 @@ function updateFramePlaceholder() {
 const aiSessionList = CDOM.ID("aiSessionList");
 const aiNewChatBtn = CDOM.ID("aiNewChatBtn");
 let aiInited = false;
+
+// 인증 여부와 무관하게 즉시 호출 가능한 엔드포인트라 페이지 접속과 동시에 조회한다.
+interface IProviderStateEntry { id: string; installed: boolean; authenticated: boolean; version: string; models: { value: string; label: string }[]; }
+async function loadAiProviderStatus() {
+    const el = document.getElementById('aiProviderStatus');
+    if (!el) return;
+    try {
+        const r = await fetch(CPath.WebRootUrl() + 'cmd/provider-state');
+        const list: IProviderStateEntry[] = await r.json();
+        el.innerHTML = list.map(p => {
+            const rowClass = !p.installed ? 'bg-secondary-subtle' : p.authenticated ? 'bg-success-subtle' : 'bg-warning-subtle';
+            const icon = !p.installed ? 'bi-x-circle text-secondary' : p.authenticated ? 'bi-check-circle-fill text-success' : 'bi-exclamation-circle-fill text-warning';
+            const status = !p.installed ? 'Not Installed' : p.authenticated ? 'Ready' : 'Not Authenticated';
+            const ver = p.version ? `<span class="text-secondary ms-2" style="font-size:0.85em;">v${p.version}</span>` : '';
+            return `<div class="d-flex align-items-center justify-content-between rounded px-3 py-2 ${rowClass}" style="font-size:1.05rem;">
+                <span class="fw-semibold text-capitalize">${p.id}${ver}</span>
+                <span class="d-flex align-items-center gap-1"><i class="bi ${icon}"></i>${status}</span>
+            </div>`;
+        }).join('');
+    } catch (e) { console.error('provider-state error:', e); }
+}
+loadAiProviderStatus();
 
 // ---- iframe pool: 세션별 iframe을 유지하고 show/hide만 토글 ----
 // key 규칙: 'chat:<sid>', 'term:<port>', 'term-new:<localId>'
@@ -235,7 +257,7 @@ function runHomeHotkey(key: string): boolean {
         case 'F2': showTab('file-tab'); FileSearch(); return true;
         case 'F3': showTab('rdp-tab'); return true;
         case 'F4': showTab('ai-tab'); return true;
-        case 'F7': showTab('board-tab'); return true;
+        case 'F7': showTab('memo-tab'); return true;
     }
     return false;
 }
@@ -633,7 +655,7 @@ async function termStartNew(_mode: 'cmd' | 'claude' /* | 'gemini' */ | 'codex' |
                 <label class="form-check-label small text-secondary" for="term-opt-mcp">MCP</label>
             </div>
             <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="term-opt-mdcopy">
+                <input class="form-check-input" type="checkbox" id="term-opt-mdcopy" checked>
                 <label class="form-check-label small text-secondary" for="term-opt-mdcopy">Copy MD</label>
             </div>
         </div>
@@ -671,27 +693,39 @@ async function termStartNew(_mode: 'cmd' | 'claude' /* | 'gemini' */ | 'codex' |
         const openBtn   = container.querySelector<HTMLButtonElement>('#term-modal-open')!;
         const cancelBtn = container.querySelector<HTMLButtonElement>('#term-modal-cancel')!;
 
+        let opening = false;
         const doOpen = async () => {
-            const key        = keyInput.value.trim();
-            const workingDir = workingDirInput.value.trim();
-            const params = new URLSearchParams({ mode: selectedMode });
-            if (key)        params.set('key', key);
-            if (workingDir) params.set('workingDir', workingDir);
-            if (!mcpCheck.checked) params.set('mcp', '0');
-            if (mdcopyCheck.checked) params.set('mdcopy', '1');
-            modal.Close();
+            if (opening) return;   // ttyd 기동에 시간이 걸려 응답이 늦으므로, 그 사이 중복 클릭 차단
+            opening = true;
+            openBtn.disabled = true;
+            cancelBtn.disabled = true;
+            const openBtnOrigHtml = openBtn.innerHTML;
+            openBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Opening...`;
             try {
+                const key        = keyInput.value.trim();
+                const workingDir = workingDirInput.value.trim();
+                const params = new URLSearchParams({ mode: selectedMode });
+                if (key)        params.set('key', key);
+                if (workingDir) params.set('workingDir', workingDir);
+                if (!mcpCheck.checked) params.set('mcp', '0');
+                if (mdcopyCheck.checked) params.set('mdcopy', '1');
                 const r = await authedFetch(CPath.WebRootUrl() + 'cmd/start-ttyd?' + params.toString());
                 const j = await r.json();
                 if (!j.ok) { alert(j.msg || 'Failed to start terminal'); return; }
-                const key = `term-new:${Date.now()}`;
-                showFrame(key, `${CPath.WebRootUrl()}cmd/terminal-proxy?port=${j.port}`);
+                modal.Close();
+                const key2 = `term-new:${Date.now()}`;
+                showFrame(key2, `${CPath.WebRootUrl()}cmd/terminal-proxy?port=${j.port}`);
                 aiRefreshSessions();
                 termRefreshSessions();
                 refreshSessionsSoon();
             } catch (e) {
                 console.error('[Terminal] start-ttyd error:', e);
                 alert('Failed to start terminal');
+            } finally {
+                opening = false;
+                openBtn.disabled = false;
+                cancelBtn.disabled = false;
+                openBtn.innerHTML = openBtnOrigHtml;
             }
         };
 
@@ -2472,6 +2506,7 @@ function showFileAdminModal() {
     setTimeout(() => {
         const applyValues = async (rootPath: string, rootUrl: string | undefined, selKey: string) => {
             fileRootSelKey = selKey;
+            RootUrl = rootUrl ?? null; // SyncFileRoot는 null을 무시하므로(부분 갱신용) 여기서 직접 초기화해야 이전 루트의 RootUrl이 남지 않는다.
             SyncFileRoot({ RootPath: rootPath || null, RootUrl: rootUrl ?? null });
             savePersistedFileRoot(rootPath || null, rootUrl ?? null, selKey);
             // 루트 리스트가 자기 url을 들고 오면 그대로 사용, 없으면(예: WorkingPath) 서버에서 받아온다.
@@ -3036,12 +3071,13 @@ window["NextPhoto"]=NextPhoto;
 
 
 
+
 // ==================================================================================================================
 // 메모
 // ==================================================================================================================
-const memoTab = CDOM.ID("board-tab") as HTMLButtonElement;
-const memoPanel = CDOM.ID("board") as HTMLDivElement;
-let memoProviders: { id: string; available: boolean; models: { value: string; label: string }[] }[] = [];
+const memoTab = CDOM.ID("memo-tab") as HTMLButtonElement;
+const memoPanel = CDOM.ID("memo") as HTMLDivElement;
+let memoProviders: { id: string; models: { value: string; label: string }[] }[] = [];
 // RDP 전환으로 서버가 바뀌는 도중 이전 서버를 향한 요청이 늦게 응답하면 새로 받아온 목록을
 // 옛 서버 데이터로 덮어쓸 수 있으므로, 서버 전환마다 증가시켜 응답이 최신 전환인지 검증한다.
 let memoLoadGen = 0;
@@ -3072,10 +3108,10 @@ async function memoLoadProviders() {
     if (memoProviders.length > 0) { memoPopulateProviderSelect(); return; }
     const gen = memoLoadGen;
     try {
-        const j = await memoGetJson(FileApiUrl('ai/chat/providers'));
+        const setting = await memoGetJson(FileApiUrl('cmd/setting'));
         if (gen !== memoLoadGen) return;
-        if (j.ok) {
-            memoProviders = j.providers;
+        if (setting.models) {
+            memoProviders = Object.keys(setting.models).map(id => ({ id, models: setting.models[id] || [] }));
             memoPopulateProviderSelect();
         }
     } catch (e) { console.error('memo providers error:', e); }
@@ -3131,9 +3167,7 @@ async function memoDoAuth() {
 function memoPopulateProviderSelect() {
     const providerEl = CDOM.ID("memoProviderSelect") as HTMLSelectElement;
     if (providerEl == null) return;
-    providerEl.innerHTML = memoProviders.map(p =>
-        `<option value="${p.id}" ${p.available ? '' : 'disabled'}>${p.id}${p.available ? '' : ' (unavailable)'}</option>`
-    ).join('');
+    providerEl.innerHTML = memoProviders.map(p => `<option value="${p.id}">${p.id}</option>`).join('');
     memoPopulateModelSelect();
 }
 
@@ -3164,6 +3198,7 @@ async function memoLoadRecentLog() {
             const r = list[i];
             const wrap = document.createElement('div');
             wrap.style.cursor = 'pointer';
+            wrap.dataset.offset = String(r.selfOffset);
             wrap.innerHTML = `
                 <div class="text-secondary small text-uppercase mb-1" style="letter-spacing: .5px;">${r.headOffset !== r.selfOffset ? `#${r.headOffset}-#${r.selfOffset}` : `#${r.selfOffset}`} · ${memoFormatTime(r.chatTime)}</div>
                 <div class="msg-bubble p-3 rounded border-start border-4 border-primary bg-primary-subtle">${aiEscapeHtml(r.original)}</div>
@@ -3174,6 +3209,24 @@ async function memoLoadRecentLog() {
         }
         memoScrollBottom();
     } catch (e) { console.error('memo recent log error:', e); }
+}
+
+// 삭제 응답 문구(단건 "메모 X 삭제 완료" / 다건 "N개 메모 삭제 완료:\n[X][시각] ...")에서 삭제된 selfOffset들을 뽑아낸다.
+function memoExtractDeletedOffsets(_text: string): number[] {
+    const offsets = new Set<number>();
+    for (const m of _text.matchAll(/Deleted memo (\d+):/g)) offsets.add(Number(m[1]));
+    for (const m of _text.matchAll(/^\[(\d+)\]/gm)) offsets.add(Number(m[1]));
+    return Array.from(offsets);
+}
+
+// 전체 재조회 없이, 삭제된 selfOffset에 해당하는 항목만 화면 목록에서 제거한다.
+function memoRemoveLogEntries(_offsets: number[]) {
+    const logEl = CDOM.ID("memo-log");
+    if (logEl == null) return;
+    for (const offset of _offsets) {
+        logEl.querySelector(`[data-offset="${offset}"]`)?.remove();
+    }
+    if (logEl.children.length === 0) memoRenderEmptyLog();
 }
 
 type MemoChainItem = { original: string; chatTime: number; selfOffset: number; nextOffset: number };
@@ -3220,6 +3273,10 @@ async function memoRefreshChainModal(_modal: CModal, _selfOffset: number): Promi
     sendBtn.addEventListener('click', send);
     input.addEventListener('keydown', (ev: KeyboardEvent) => {
         if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); send(); }
+    });
+    input.addEventListener('input', () => {
+        input.style.height = '0';
+        input.style.height = Math.min(input.scrollHeight, 160) + 'px';
     });
     setTimeout(() => input.focus(), 50);
 
@@ -3337,6 +3394,7 @@ async function memoSend() {
 
     memoPendingEl = memoAppendBubble('user', text, true);
     textEl.value = '';
+    textEl.style.height = '0';
     sendBtn.disabled = true;
     try {
         const j = await memoPostJson(FileApiUrl('Memo/Chat'), {
@@ -3357,6 +3415,9 @@ async function memoSend() {
                 memoPendingEl = null;
             }
             memoAppendBubble('ai', j.result);
+            // 삭제 응답이면 결과 문구에서 삭제된 selfOffset들을 뽑아 전체 재조회 없이 해당 항목만 제거한다.
+            const deletedOffsets = memoExtractDeletedOffsets(j.result);
+            if (deletedOffsets.length > 0) memoRemoveLogEntries(deletedOffsets);
         }
     } catch (e) {
         console.error('memo chat error:', e);
@@ -3369,9 +3430,6 @@ async function memoSend() {
 function memoEnsureLayout() {
     if (CDOM.ID("memo-content")) return;
 
-    memoTab.dataset.en = "Memo";
-    memoTab.setAttribute("aria-controls", "board");
-    memoTab.innerHTML = '<i class="bi bi-journal-text"></i> Memo<span class="text-secondary" style="font-size:0.7em;">F7</span>';
     memoPanel.classList.add("position-relative");
     memoPanel.style.overflow = "hidden";
     memoPanel.innerHTML = `
@@ -3428,6 +3486,11 @@ function memoEnsureLayout() {
     CDOM.ID("memoTextInput").addEventListener("keydown", (ev: KeyboardEvent) => {
         if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); memoSend(); }
     });
+    CDOM.ID("memoTextInput").addEventListener("input", () => {
+        const el = CDOM.ID("memoTextInput") as HTMLTextAreaElement;
+        el.style.height = '0';
+        el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+    });
     CDOM.ID("memo-auth-overlay").addEventListener("keydown", (e) => e.stopPropagation());
     CDOM.ID("memoAuthSubmitBtn").addEventListener("click", memoDoAuth);
     (CDOM.ID("memoAuthPwInput") as HTMLInputElement).addEventListener("keydown", (ev: KeyboardEvent) => {
@@ -3457,5 +3520,6 @@ function memoNotifyRootChanged() {
     memoRenderEmptyLog();
     memoShowAuthOrLoad();
 }
+
 
 

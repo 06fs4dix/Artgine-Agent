@@ -18,7 +18,7 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mqs28h34_2";
+gPF.mVersion = "mqthc3n0_4";
 import { CAtelier } from "../../Artgine/artgine/app/CAtelier.js";
 var gAtl = new CAtelier();
 gAtl.mPF = gPF;
@@ -59,6 +59,29 @@ function updateFramePlaceholder() {
 const aiSessionList = CDOM.ID("aiSessionList");
 const aiNewChatBtn = CDOM.ID("aiNewChatBtn");
 let aiInited = false;
+async function loadAiProviderStatus() {
+    const el = document.getElementById('aiProviderStatus');
+    if (!el)
+        return;
+    try {
+        const r = await fetch(CPath.WebRootUrl() + 'cmd/provider-state');
+        const list = await r.json();
+        el.innerHTML = list.map(p => {
+            const rowClass = !p.installed ? 'bg-secondary-subtle' : p.authenticated ? 'bg-success-subtle' : 'bg-warning-subtle';
+            const icon = !p.installed ? 'bi-x-circle text-secondary' : p.authenticated ? 'bi-check-circle-fill text-success' : 'bi-exclamation-circle-fill text-warning';
+            const status = !p.installed ? 'Not Installed' : p.authenticated ? 'Ready' : 'Not Authenticated';
+            const ver = p.version ? `<span class="text-secondary ms-2" style="font-size:0.85em;">v${p.version}</span>` : '';
+            return `<div class="d-flex align-items-center justify-content-between rounded px-3 py-2 ${rowClass}" style="font-size:1.05rem;">
+                <span class="fw-semibold text-capitalize">${p.id}${ver}</span>
+                <span class="d-flex align-items-center gap-1"><i class="bi ${icon}"></i>${status}</span>
+            </div>`;
+        }).join('');
+    }
+    catch (e) {
+        console.error('provider-state error:', e);
+    }
+}
+loadAiProviderStatus();
 const iframePool = new Map();
 let activeFrameKey = null;
 let pendingNewSid = null;
@@ -199,7 +222,7 @@ function runHomeHotkey(key) {
             showTab('ai-tab');
             return true;
         case 'F7':
-            showTab('board-tab');
+            showTab('memo-tab');
             return true;
     }
     return false;
@@ -601,7 +624,7 @@ async function termStartNew(_mode = 'cmd', initialWorkingDir) {
                 <label class="form-check-label small text-secondary" for="term-opt-mcp">MCP</label>
             </div>
             <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="term-opt-mdcopy">
+                <input class="form-check-input" type="checkbox" id="term-opt-mdcopy" checked>
                 <label class="form-check-label small text-secondary" for="term-opt-mdcopy">Copy MD</label>
             </div>
         </div>
@@ -633,28 +656,36 @@ async function termStartNew(_mode = 'cmd', initialWorkingDir) {
             workingDirInput.value = initialWorkingDir;
         const openBtn = container.querySelector('#term-modal-open');
         const cancelBtn = container.querySelector('#term-modal-cancel');
+        let opening = false;
         const doOpen = async () => {
-            const key = keyInput.value.trim();
-            const workingDir = workingDirInput.value.trim();
-            const params = new URLSearchParams({ mode: selectedMode });
-            if (key)
-                params.set('key', key);
-            if (workingDir)
-                params.set('workingDir', workingDir);
-            if (!mcpCheck.checked)
-                params.set('mcp', '0');
-            if (mdcopyCheck.checked)
-                params.set('mdcopy', '1');
-            modal.Close();
+            if (opening)
+                return;
+            opening = true;
+            openBtn.disabled = true;
+            cancelBtn.disabled = true;
+            const openBtnOrigHtml = openBtn.innerHTML;
+            openBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>Opening...`;
             try {
+                const key = keyInput.value.trim();
+                const workingDir = workingDirInput.value.trim();
+                const params = new URLSearchParams({ mode: selectedMode });
+                if (key)
+                    params.set('key', key);
+                if (workingDir)
+                    params.set('workingDir', workingDir);
+                if (!mcpCheck.checked)
+                    params.set('mcp', '0');
+                if (mdcopyCheck.checked)
+                    params.set('mdcopy', '1');
                 const r = await authedFetch(CPath.WebRootUrl() + 'cmd/start-ttyd?' + params.toString());
                 const j = await r.json();
                 if (!j.ok) {
                     alert(j.msg || 'Failed to start terminal');
                     return;
                 }
-                const key = `term-new:${Date.now()}`;
-                showFrame(key, `${CPath.WebRootUrl()}cmd/terminal-proxy?port=${j.port}`);
+                modal.Close();
+                const key2 = `term-new:${Date.now()}`;
+                showFrame(key2, `${CPath.WebRootUrl()}cmd/terminal-proxy?port=${j.port}`);
                 aiRefreshSessions();
                 termRefreshSessions();
                 refreshSessionsSoon();
@@ -662,6 +693,12 @@ async function termStartNew(_mode = 'cmd', initialWorkingDir) {
             catch (e) {
                 console.error('[Terminal] start-ttyd error:', e);
                 alert('Failed to start terminal');
+            }
+            finally {
+                opening = false;
+                openBtn.disabled = false;
+                cancelBtn.disabled = false;
+                openBtn.innerHTML = openBtnOrigHtml;
             }
         };
         openBtn.addEventListener('click', doOpen);
@@ -2349,6 +2386,7 @@ function showFileAdminModal() {
     setTimeout(() => {
         const applyValues = async (rootPath, rootUrl, selKey) => {
             fileRootSelKey = selKey;
+            RootUrl = rootUrl ?? null;
             SyncFileRoot({ RootPath: rootPath || null, RootUrl: rootUrl ?? null });
             savePersistedFileRoot(rootPath || null, rootUrl ?? null, selKey);
             if (!rootUrl)
@@ -2858,8 +2896,8 @@ function NextPhoto() {
     CAlert.Info("더 이상 없습니다.");
 }
 window["NextPhoto"] = NextPhoto;
-const memoTab = CDOM.ID("board-tab");
-const memoPanel = CDOM.ID("board");
+const memoTab = CDOM.ID("memo-tab");
+const memoPanel = CDOM.ID("memo");
 let memoProviders = [];
 let memoLoadGen = 0;
 function memoFormatTime(_t) {
@@ -2895,11 +2933,11 @@ async function memoLoadProviders() {
     }
     const gen = memoLoadGen;
     try {
-        const j = await memoGetJson(FileApiUrl('ai/chat/providers'));
+        const setting = await memoGetJson(FileApiUrl('cmd/setting'));
         if (gen !== memoLoadGen)
             return;
-        if (j.ok) {
-            memoProviders = j.providers;
+        if (setting.models) {
+            memoProviders = Object.keys(setting.models).map(id => ({ id, models: setting.models[id] || [] }));
             memoPopulateProviderSelect();
         }
     }
@@ -2963,7 +3001,7 @@ function memoPopulateProviderSelect() {
     const providerEl = CDOM.ID("memoProviderSelect");
     if (providerEl == null)
         return;
-    providerEl.innerHTML = memoProviders.map(p => `<option value="${p.id}" ${p.available ? '' : 'disabled'}>${p.id}${p.available ? '' : ' (unavailable)'}</option>`).join('');
+    providerEl.innerHTML = memoProviders.map(p => `<option value="${p.id}">${p.id}</option>`).join('');
     memoPopulateModelSelect();
 }
 function memoPopulateModelSelect() {
@@ -2999,6 +3037,7 @@ async function memoLoadRecentLog() {
             const r = list[i];
             const wrap = document.createElement('div');
             wrap.style.cursor = 'pointer';
+            wrap.dataset.offset = String(r.selfOffset);
             wrap.innerHTML = `
                 <div class="text-secondary small text-uppercase mb-1" style="letter-spacing: .5px;">${r.headOffset !== r.selfOffset ? `#${r.headOffset}-#${r.selfOffset}` : `#${r.selfOffset}`} · ${memoFormatTime(r.chatTime)}</div>
                 <div class="msg-bubble p-3 rounded border-start border-4 border-primary bg-primary-subtle">${aiEscapeHtml(r.original)}</div>
@@ -3012,6 +3051,24 @@ async function memoLoadRecentLog() {
     catch (e) {
         console.error('memo recent log error:', e);
     }
+}
+function memoExtractDeletedOffsets(_text) {
+    const offsets = new Set();
+    for (const m of _text.matchAll(/Deleted memo (\d+):/g))
+        offsets.add(Number(m[1]));
+    for (const m of _text.matchAll(/^\[(\d+)\]/gm))
+        offsets.add(Number(m[1]));
+    return Array.from(offsets);
+}
+function memoRemoveLogEntries(_offsets) {
+    const logEl = CDOM.ID("memo-log");
+    if (logEl == null)
+        return;
+    for (const offset of _offsets) {
+        logEl.querySelector(`[data-offset="${offset}"]`)?.remove();
+    }
+    if (logEl.children.length === 0)
+        memoRenderEmptyLog();
 }
 function memoChainBodyHtml(_chain) {
     const range = _chain.length > 1 ? `#${_chain[0].selfOffset} - #${_chain[_chain.length - 1].selfOffset}` : `#${_chain[0].selfOffset}`;
@@ -3057,6 +3114,10 @@ async function memoRefreshChainModal(_modal, _selfOffset) {
             ev.preventDefault();
             send();
         }
+    });
+    input.addEventListener('input', () => {
+        input.style.height = '0';
+        input.style.height = Math.min(input.scrollHeight, 160) + 'px';
     });
     setTimeout(() => input.focus(), 50);
     body.querySelectorAll('.memoChainDeleteBtn').forEach(btn => {
@@ -3178,6 +3239,7 @@ async function memoSend() {
         return;
     memoPendingEl = memoAppendBubble('user', text, true);
     textEl.value = '';
+    textEl.style.height = '0';
     sendBtn.disabled = true;
     try {
         const j = await memoPostJson(FileApiUrl('Memo/Chat'), {
@@ -3205,6 +3267,9 @@ async function memoSend() {
                 memoPendingEl = null;
             }
             memoAppendBubble('ai', j.result);
+            const deletedOffsets = memoExtractDeletedOffsets(j.result);
+            if (deletedOffsets.length > 0)
+                memoRemoveLogEntries(deletedOffsets);
         }
     }
     catch (e) {
@@ -3218,9 +3283,6 @@ async function memoSend() {
 function memoEnsureLayout() {
     if (CDOM.ID("memo-content"))
         return;
-    memoTab.dataset.en = "Memo";
-    memoTab.setAttribute("aria-controls", "board");
-    memoTab.innerHTML = '<i class="bi bi-journal-text"></i> Memo<span class="text-secondary" style="font-size:0.7em;">F7</span>';
     memoPanel.classList.add("position-relative");
     memoPanel.style.overflow = "hidden";
     memoPanel.innerHTML = `
@@ -3278,6 +3340,11 @@ function memoEnsureLayout() {
             ev.preventDefault();
             memoSend();
         }
+    });
+    CDOM.ID("memoTextInput").addEventListener("input", () => {
+        const el = CDOM.ID("memoTextInput");
+        el.style.height = '0';
+        el.style.height = Math.min(el.scrollHeight, 200) + 'px';
     });
     CDOM.ID("memo-auth-overlay").addEventListener("keydown", (e) => e.stopPropagation());
     CDOM.ID("memoAuthSubmitBtn").addEventListener("click", memoDoAuth);

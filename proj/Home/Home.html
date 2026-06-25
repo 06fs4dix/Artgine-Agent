@@ -110,15 +110,16 @@ if (location.protocol == 'file:' && isElectron==false){
         <button class="nav-link" id="file-tab" data-bs-toggle="tab" data-bs-target="#file" type="button" role="tab"
             aria-controls="file" aria-selected="false" data-en="File"><i class="bi bi-folder-fill"></i> Files<span class="text-secondary" style="font-size:0.7em;">F1/F2</span></button>
     </li>
-
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="ai-tab" data-bs-toggle="tab" data-bs-target="#ai-panel" type="button"
             role="tab" aria-controls="ai-panel" aria-selected="false" data-en="AI"><i class="bi bi-robot"></i> AI<span class="text-secondary" style="font-size:0.7em;">F4</span></button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" id="board-tab" data-bs-toggle="tab" data-bs-target="#board" type="button" role="tab"
-            aria-controls="board" aria-selected="false" data-en="Board"><i class="bi bi-kanban-fill"></i> Board<span class="text-secondary" style="font-size:0.7em;">F7</span></button>
+        <button class="nav-link" id="memo-tab" data-bs-toggle="tab" data-bs-target="#memo" type="button" role="tab"
+            aria-controls="memo" aria-selected="false" data-en="Memo"><i class="bi bi-journal-text"></i> Memo<span class="text-secondary" style="font-size:0.7em;">F7</span></button>
     </li>
+	<!-- 로그인 버튼 (오른쪽 정렬) -->
+    
     <li class="nav-item ms-auto" role="presentation">
         <button class="btn btn-outline-success me-1 mt-1" id="install-btn" type="button" style="display:none;">
             <i class="bi bi-download"></i> Install
@@ -154,7 +155,7 @@ if (location.protocol == 'file:' && isElectron==false){
             </div>
         </div>
     </div>
-    <div class="tab-pane h-100" id="board" role="tabpanel" aria-labelledby="board-tab" style="overflow-x: hidden;">
+    <div class="tab-pane h-100" id="memo" role="tabpanel" aria-labelledby="memo-tab" style="overflow-x: hidden;">
     </div>
     <div class="tab-pane h-100" id="file" role="tabpanel" aria-labelledby="file-tab" style="overflow-y:auto;">
         <div id='Menu_div'></div>
@@ -239,6 +240,10 @@ if (location.protocol == 'file:' && isElectron==false){
             <div id="ai-frame-placeholder" class="position-absolute d-flex align-items-center justify-content-center"
                  style="inset:0;overflow-y:auto;background:var(--bs-body-bg);">
                 <div class="p-4" style="max-width:560px;width:100%;">
+                    <div class="mb-4">
+                        <div class="text-secondary fw-semibold mb-2"><i class="bi bi-robot"></i> Provider Status</div>
+                        <div id="aiProviderStatus" class="d-flex flex-column gap-2"></div>
+                    </div>
                     <h5 class="mb-3 text-secondary"><i class="bi bi-keyboard"></i> Keyboard Shortcuts</h5>
                     <div class="mb-3">
                         <div class="small text-secondary fw-semibold mb-1">Global</div>

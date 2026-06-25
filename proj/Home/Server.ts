@@ -1,7 +1,6 @@
 import { CConsol } from "../../Artgine/artgine/basic/CConsol.js";
 
 import { CServerMain } from "../../Artgine/artgine/network/CServerMain.js";
-import { CBoardServer } from "../../Artgine/artgine/server/CBoardServer.js";
 
 import { CFileServer } from "../../Artgine/artgine/server/CFileServer.js";
 import { COAuthServer } from "../../Artgine/artgine/server/COAuthServer.js";
@@ -12,7 +11,6 @@ import { CAIChatRouter } from "../../Artgine/artgine/server/CAIChatRouter.js";
 import { CPlaywrightRouter } from "../../Artgine/artgine/server/CPlaywrightRouter.js";
 import { CRemoteDesktopRouter } from "../../Artgine/artgine/server/CRemoteDesktopRouter.js";
 import { CMemoRouter } from "../../Artgine/artgine/server/CMemoRouter.js";
-
 
 
 
