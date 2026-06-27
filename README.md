@@ -40,29 +40,60 @@ Download and extract the archive for your platform, then run the included `Artgi
 
 ## Features at a Glance
 
-### Files tab `F3`
+### RDP tab `F3`
+View a local or remote Home.html screen directly. Enable input mode to forward keyboard and mouse events to the target screen.
+
+### Files tab `F1` / `F2`
 Browse and manage files on the server — navigate folders, view images, play audio/video, and edit `.ts` `.js` `.html` `.json` `.txt` files with Monaco editor. Git/SVN status badges appear alongside files when installed.
 
+- **`F1` File Manager** — Root selection and version control operations (Git/SVN).
+- **`F2` File Search** — Recursive filename search; jump to location from results.
+
 ### AI tab `F4`
-Manage AI chat and terminal sessions in an iframe-based panel.
+Manage AI chat, terminal, and web sessions in an iframe-based panel.
 
 - **Chat** — Multi-session AI chat supporting Claude, Codex, Antigravity, and OpenCode providers. Sessions show status colors: 🔴 disconnected · 🟡 busy · 🟢 idle.
 - **Terminal** — Up to 9 concurrent terminal sessions. Modes: `cmd`, `claude`, `codex`, `antigravity`, `opencode`. Includes SUPER mode (`F6`) for auto-approving agent commands (input border turns red when active).
-- **Browser** — Web debugging via remote Playwright sessions: live screenshot streaming, console/network log capture, mouse/keyboard remote control, and read-only share links.
+- **Web** — Web debugging via remote Playwright sessions: live screenshot streaming, console/network log capture, mouse/keyboard remote control, and read-only share links.
 - **Schedule** — Register recurring commands that run automatically on a timer, attached to a terminal session.
 
 ### Key Shortcuts
+
+**Global**
 | Key | Action |
 |-----|--------|
-| `F1` | Open File Manager modal (Files tab) |
-| `F2` | File search |
-| `F3` | Files tab |
+| `F1` | Open File Manager modal |
+| `F2` | Recursive file search |
+| `F3` | RDP tab |
 | `F4` | AI tab |
 | `F6` | Toggle SUPER mode (terminal) |
 | `F7` | Focus terminal input bar |
-| `Tab` | Toggle AI sidebar |
 
-See the full shortcut reference in the [tutorial](https://06fs4dix.github.io/Artgine/help/artgine-agent-tutorial.html).
+**AI Panel (sidebar)**
+| Key | Action |
+|-----|--------|
+| `Tab` | Toggle sidebar open/close |
+| `1` / `2` / `3` | Switch to Chat / Term / Web sub-tab |
+| `↑` / `↓` | Navigate session list |
+| `→` | Jump to notified session |
+| `←` | Return to previous session |
+
+**Terminal**
+| Key | Action |
+|-----|--------|
+| `Shift+N` | New terminal session |
+| `Shift+D` | Close current terminal |
+| `Enter` | Send input |
+| `Ctrl+T` | Scroll to bottom |
+
+**Chat**
+| Key | Action |
+|-----|--------|
+| `Shift+Enter` | New line (instead of send) |
+| `Esc` | Close autocomplete |
+| `Tab` | Apply autocomplete |
+
+See the full reference in the [tutorial](https://06fs4dix.github.io/Artgine/help/artgine-agent-tutorial.html).
 
 ## AI Folder (`ai/`)
 
