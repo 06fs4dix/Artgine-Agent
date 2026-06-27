@@ -19,11 +19,22 @@ npm install
 npm start
 ```
 
+Alternatively, run `start.bat` (Windows) or `start.bash` (Linux/macOS) directly.
+
 Then open **`http://localhost:8050`** in your browser.
 
 > **Web-only mode** — `npm run start_web [port]` (default: 8050)
 
 > **Default password**: `artgine` — change this before exposing to a network.
+
+### Executable (no Node.js required)
+
+Download and extract the archive for your platform, then run the included `Artgine` executable.
+
+| Platform | Download |
+|----------|----------|
+| Windows  | [Artgine-win32-x64.zip](https://github.com/06fs4dix/Artgine-Agent/releases/download/AI/Artgine-win32-x64.zip) |
+| Linux    | [Artgine-linux-x64.zip](https://github.com/06fs4dix/Artgine-Agent/releases/download/AI/Artgine-linux-x64.zip) |
 
 
 

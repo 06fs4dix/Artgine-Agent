@@ -19,11 +19,22 @@ npm install
 npm start
 ```
 
+또는 `start.bat` (Windows) / `start.bash` (Linux/macOS) 를 직접 실행해도 됩니다.
+
 실행 후 브라우저에서 **`http://localhost:8050`** 접속.
 
 > **웹 서버만 실행** — `npm run start_web [포트]` (기본값: 8050)
 
 > **기본 비밀번호**: `artgine` — 외부 네트워크에 노출하기 전에 반드시 변경하세요.
+
+### 실행파일 버전 (Node.js 불필요)
+
+플랫폼에 맞는 압축 파일을 다운로드 후 압축 해제하고, 포함된 `Artgine` 실행파일을 실행합니다.
+
+| 플랫폼 | 다운로드 |
+|--------|----------|
+| Windows  | [Artgine-win32-x64.zip](https://github.com/06fs4dix/Artgine-Agent/releases/download/AI/Artgine-win32-x64.zip) |
+| Linux    | [Artgine-linux-x64.zip](https://github.com/06fs4dix/Artgine-Agent/releases/download/AI/Artgine-linux-x64.zip) |
 
 
 
