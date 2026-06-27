@@ -18,7 +18,7 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mqux8ysn_4";
+gPF.mVersion = "mqw0k8w6_2";
 import { CAtelier } from "../../Artgine/artgine/app/CAtelier.js";
 var gAtl = new CAtelier();
 gAtl.mPF = gPF;

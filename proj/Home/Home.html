@@ -244,8 +244,9 @@ if (location.protocol == 'file:' && isElectron==false){
                 title="Toggle sidebar">
                 <i class="bi bi-layout-sidebar-inset"></i>
             </button>
-            <div id="ai-frame-placeholder" class="position-absolute d-flex align-items-center justify-content-center"
+            <div id="ai-frame-placeholder" class="position-absolute"
                  style="inset:0;overflow-y:auto;background:var(--bs-body-bg);">
+                <div class="d-flex align-items-center justify-content-center" style="min-height:100%;">
                 <div class="p-4" style="max-width:560px;width:100%;">
                     <div class="mb-4">
                         <div class="d-flex align-items-center justify-content-between mb-2">
@@ -289,6 +290,7 @@ if (location.protocol == 'file:' && isElectron==false){
                             <li data-CLan="ai.kb.f6"><kbd>F6</kbd> Toggle SUPER (auto-approve) + focus input bar</li>
                         </ul>
                     </div>
+                </div>
                 </div>
             </div>
         </div>
