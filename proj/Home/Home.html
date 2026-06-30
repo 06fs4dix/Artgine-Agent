@@ -120,11 +120,8 @@ if (location.protocol == 'file:' && isElectron==false){
         <button class="nav-link" id="memo-tab" data-bs-toggle="tab" data-bs-target="#memo" type="button" role="tab"
             aria-controls="memo" aria-selected="false" data-en="Memo"><i class="bi bi-journal-text"></i> Memo<span class="text-secondary" style="font-size:0.7em;">F7</span></button>
     </li>
-	
+
     <li class="nav-item ms-auto" role="presentation">
-        <button class="btn btn-outline-success me-1 mt-1" id="install-btn" type="button" style="display:none;">
-            <i class="bi bi-download"></i> Install
-        </button>
 <button class="btn btn-outline-primary me-2 mt-1" id="login-btn" type="button" style="display:none;">
             Login
         </button>
@@ -248,6 +245,24 @@ if (location.protocol == 'file:' && isElectron==false){
                  style="inset:0;overflow-y:auto;background:var(--bs-body-bg);">
                 <div class="d-flex align-items-center justify-content-center" style="min-height:100%;">
                 <div class="p-4" style="max-width:560px;width:100%;">
+                    <div class="d-flex gap-2 mb-4">
+                        <button class="ai-site-launch-btn btn btn-outline-secondary flex-fill d-flex align-items-center justify-content-center gap-1 px-1 py-1" data-web="https://claude.ai" data-app="claude://" style="min-width:0;font-size:0.78rem;">
+                            <span style="width:16px;height:16px;border-radius:3px;background:#d97706;display:inline-flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:#fff;flex-shrink:0;">C</span>
+                            Claude
+                        </button>
+                        <button class="ai-site-launch-btn btn btn-outline-secondary flex-fill d-flex align-items-center justify-content-center gap-1 px-1 py-1" data-web="https://chatgpt.com" data-app="chatgpt://" style="min-width:0;font-size:0.78rem;">
+                            <span style="width:16px;height:16px;border-radius:3px;background:#10a37f;display:inline-flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:#fff;flex-shrink:0;">G</span>
+                            GPT
+                        </button>
+                        <button class="ai-site-launch-btn btn btn-outline-secondary flex-fill d-flex align-items-center justify-content-center gap-1 px-1 py-1" data-web="https://gemini.google.com" data-app="https://gemini.google.com" style="min-width:0;font-size:0.78rem;">
+                            <span style="width:16px;height:16px;border-radius:3px;background:#4285f4;display:inline-flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:#fff;flex-shrink:0;">G</span>
+                            Gemini
+                        </button>
+                        <button class="ai-site-launch-btn btn btn-outline-secondary flex-fill d-flex align-items-center justify-content-center gap-1 px-1 py-1" data-web="https://opencode.ai" data-app="https://opencode.ai" style="min-width:0;font-size:0.78rem;">
+                            <span style="width:16px;height:16px;border-radius:3px;background:#6366f1;display:inline-flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;color:#fff;flex-shrink:0;">O</span>
+                            OpenCode
+                        </button>
+                    </div>
                     <div class="mb-4">
                         <div class="d-flex align-items-center justify-content-between mb-2">
                             <span class="text-secondary fw-semibold"><i class="bi bi-robot"></i> <span data-CLan="ai.providerStatus">Provider Status</span></span>

@@ -1,4 +1,5 @@
-Artgine-Agent is a web-based agent interface built on the [Artgine](https://github.com/06fs4dix/Artgine) engine. It provides a file browser, AI assistant, and terminal in a single app, served through the Artgine desktop or web server.
+Artgine-Agent is a web-based agent interface built on the [Artgine](https://github.com/06fs4dix/Artgine) engine. 
+It provides a file browser, AI assistant, and terminal in a single app, served through the Artgine desktop or web server.
 
 > Language **[한국어](README-ko.md)**
 

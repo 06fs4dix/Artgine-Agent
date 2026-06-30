@@ -18,7 +18,7 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mqw0k8w6_2";
+gPF.mVersion = "mr0mvqwf_2";
 import { CAtelier } from "../../Artgine/artgine/app/CAtelier.js";
 var gAtl = new CAtelier();
 gAtl.mPF = gPF;
@@ -33,19 +33,10 @@ import { CFecth } from "../../Artgine/artgine/network/CFecth.js";
 import { CPath } from "../../Artgine/artgine/basic/CPath.js";
 import { getAuthToken, setAuthToken, removeAuthToken } from "../../Artgine/artgine/server/CAuthToken.js";
 import { CFileViewer, CMDViewer, CSheetViewer, CModalStackMsg, CModalMusic } from "../../Artgine/artgine/util/CModalUtil.js";
-import { CPWA } from '../../Artgine/artgine/system/CPWA.js';
 import { Bootstrap } from "../../Artgine/artgine/basic/Bootstrap.js";
 if (gPF.mServer != "webServer")
     CAlert.E("Server setting is invalid.");
 CUtilWeb.Parameter("");
-if (!CPWA.IsInstalled()) {
-    CDOM.ID("install-btn").style.display = "";
-}
-CDOM.ID("install-btn").addEventListener("click", () => {
-    let msg = CPWA.Install();
-    if (msg)
-        CAlert.Info(msg);
-});
 const MODAL_DOM_DELAY = 100;
 const DEFAULT_AUTH_PASSWORD = 'artgine';
 function warnIfDefaultAuthPassword(pw) {
@@ -170,6 +161,20 @@ async function loadAiProviderStatus() {
 }
 loadAiProviderStatus();
 document.getElementById('aiProviderRefreshBtn')?.addEventListener('click', () => loadAiProviderStatus());
+function openAiSite(appUrl, webUrl) {
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobile && appUrl !== webUrl) {
+        const t = setTimeout(() => { window.open(webUrl, '_blank', 'noopener,noreferrer'); }, 1500);
+        window.addEventListener('blur', () => clearTimeout(t), { once: true });
+        window.location.href = appUrl;
+    }
+    else {
+        window.open(webUrl, '_blank', 'noopener,noreferrer');
+    }
+}
+document.querySelectorAll('.ai-site-launch-btn').forEach(btn => {
+    btn.addEventListener('click', () => openAiSite(btn.dataset.app ?? btn.dataset.web, btn.dataset.web));
+});
 function goProviderStatusPage() {
     showTab('ai-tab');
     if (activeFrameKey) {
@@ -231,7 +236,7 @@ function handleTermSidebarShortcut(e) {
             return false;
         e.preventDefault();
         e.stopPropagation();
-        termConfirmKillSession(parseInt(activeFrameKey.slice(5), 10));
+        termConfirmKillSession(activeFrameKey.slice(5));
         return true;
     }
     return false;
@@ -810,7 +815,7 @@ async function termStartNew(_mode = 'cmd', initialWorkingDir) {
                 }
                 modal.Close();
                 const key2 = `term-new:${Date.now()}`;
-                showFrame(key2, `${CPath.WebRootUrl()}cmd/terminal-proxy?port=${j.port}`);
+                showFrame(key2, `${CPath.WebRootUrl()}cmd/terminal-proxy?token=${j.token}`);
                 aiRefreshSessions();
                 termRefreshSessions();
                 refreshSessionsSoon();
@@ -832,8 +837,8 @@ async function termStartNew(_mode = 'cmd', initialWorkingDir) {
             doOpen(); });
     }, MODAL_DOM_DELAY);
 }
-async function termConnectSession(port, focusInput = true) {
-    const key = `term:${port}`;
+async function termConnectSession(token, focusInput = true) {
+    const key = `term:${token}`;
     if (iframePool.has(key)) {
         showFrame(key, '');
         aiRefreshSessions();
@@ -844,13 +849,13 @@ async function termConnectSession(port, focusInput = true) {
     }
     if (!focusInput)
         noFocusTermKeys.add(key);
-    showFrame(key, `${CPath.WebRootUrl()}cmd/terminal-proxy?port=${port}`);
+    showFrame(key, `${CPath.WebRootUrl()}cmd/terminal-proxy?token=${token}`);
     aiRefreshSessions();
     termRefreshSessions();
 }
-async function termKillSession(port) {
+async function termKillSession(token) {
     try {
-        const r = await authedFetch(`${CPath.WebRootUrl()}cmd/kill-session?port=${port}`);
+        const r = await authedFetch(`${CPath.WebRootUrl()}cmd/kill-session?token=${token}`);
         const j = await r.json();
         if (!j.ok) {
             alert(`삭제 실패: ${j.msg || 'unknown error'}`);
@@ -863,13 +868,13 @@ async function termKillSession(port) {
         console.error('termKillSession error:', e);
     }
 }
-function termConfirmKillSession(port) {
-    const item = termSessionList.querySelector(`[data-port="${port}"]`);
-    const label = item?.querySelector('.fw-semibold')?.textContent || `Terminal ${port}`;
+function termConfirmKillSession(token) {
+    const item = termSessionList.querySelector(`[data-token="${token}"]`);
+    const label = item?.querySelector('.fw-semibold')?.textContent || 'Terminal';
     const confirm = new CConfirm();
     confirm.SetBody(`Delete ${aiEscapeHtml(label)}?`);
     confirm.SetConfirm(CConfirm.eConfirm.YesNo, [
-        () => { termKillSession(port); },
+        () => { termKillSession(token); },
         () => { },
     ], ["Delete", "Cancel"]);
     confirm.Open();
@@ -884,19 +889,19 @@ async function termRefreshSessions() {
             return;
         termSessionList.innerHTML = '';
         const sessions = j.sessions;
-        const serverPorts = new Set(sessions.map(s => s.port));
+        const serverTokens = new Set(sessions.map(s => s.token));
         for (const key of Array.from(iframePool.keys())) {
             if (!key.startsWith('term:'))
                 continue;
-            if (!serverPorts.has(parseInt(key.slice(5), 10)))
+            if (!serverTokens.has(key.slice(5)))
                 destroyFrame(key);
         }
         const termNewKeys = Array.from(iframePool.keys()).filter(k => k.startsWith('term-new:'));
         if (termNewKeys.length > 0) {
-            const newSessions = sessions.filter(s => !iframePool.has(`term:${s.port}`));
+            const newSessions = sessions.filter(s => !iframePool.has(`term:${s.token}`));
             if (newSessions.length > 0) {
                 const newest = newSessions.reduce((a, b) => (a.createdAt > b.createdAt ? a : b));
-                const key = `term:${newest.port}`;
+                const key = `term:${newest.token}`;
                 const newKey = termNewKeys[0];
                 const f = iframePool.get(newKey);
                 iframePool.delete(newKey);
@@ -906,7 +911,7 @@ async function termRefreshSessions() {
             }
         }
         for (const s of sessions) {
-            const key = `term:${s.port}`;
+            const key = `term:${s.token}`;
             const isActive = activeFrameKey === key;
             const isLoaded = iframePool.has(key);
             const rel = aiFormatRelative(s.updatedAt);
@@ -918,13 +923,13 @@ async function termRefreshSessions() {
                     : !isLoaded ? 'off'
                         : s.busy ? 'busy'
                             : 'idle';
-            syncSessState(`term:${s.port}`, st, () => {
+            syncSessState(`term:${s.token}`, st, () => {
                 const rawPreview = s.lastMsg || '';
                 if (!isActiveFrame(key) || !document.hasFocus())
-                    _showDoneNotification(`${s.key || s.mode}: ${rawPreview}`.trimEnd(), rawPreview ? preview : undefined, () => termConnectSession(s.port));
+                    _showDoneNotification(`${s.key || s.mode}: ${rawPreview}`.trimEnd(), rawPreview ? preview : undefined, () => termConnectSession(s.token));
             }, () => {
                 if (!isActiveFrame(key) || !document.hasFocus())
-                    _showDoneNotification(`⚠️ ${s.key || s.mode}: 권한 승인 필요`, s.lastMsg || undefined, () => termConnectSession(s.port));
+                    _showDoneNotification(`⚠️ ${s.key || s.mode}: 권한 승인 필요`, s.lastMsg || undefined, () => termConnectSession(s.token));
             });
             const dot = st === 'off' ? `<span class="badge rounded-pill bg-danger" title="${aiEscapeHtml(dotTitle)}">${dotLabel}</span>`
                 : st === 'wait' ? `<span class="badge rounded-pill bg-warning term-busy-dot" title="${aiEscapeHtml(dotTitle)}" style="filter:hue-rotate(30deg)">${dotLabel}</span>`
@@ -933,7 +938,7 @@ async function termRefreshSessions() {
             const item = createSessionItem({
                 activeClass: 'bg-success-subtle',
                 isActive,
-                dataAttr: { name: 'port', value: String(s.port) },
+                dataAttr: { name: 'token', value: s.token },
                 cursorPointer: true,
                 leftHtml: `
                 <span class="d-flex flex-column align-items-center flex-shrink-0" style="min-width:1.5rem;">
@@ -948,10 +953,10 @@ async function termRefreshSessions() {
                 </span>`,
                 deleteAct: 'kill',
                 deleteLabel: '🗑️ Delete Session',
-                onClick: () => termConnectSession(s.port),
-                onShare: () => termShowShareLink(s.port),
-                onDelete: () => termConfirmKillSession(s.port),
-                popup: { url: () => `${CPath.WebRootUrl()}cmd/terminal-proxy?port=${s.port}`, title: s.key || s.mode || 'Terminal', winName: `term_${s.port}` },
+                onClick: () => termConnectSession(s.token),
+                onShare: () => termShowShareLink(s.token),
+                onDelete: () => termConfirmKillSession(s.token),
+                popup: { url: () => `${CPath.WebRootUrl()}cmd/terminal-proxy?token=${s.token}`, title: s.key || s.mode || 'Terminal', winName: `term_${s.token.slice(0, 8)}` },
             });
             termSessionList.appendChild(item);
         }
@@ -960,8 +965,8 @@ async function termRefreshSessions() {
         console.error('Terminal session list error:', e);
     }
 }
-function termShowShareLink(port) {
-    showShareLinkModal('Terminal Share Link', 'Anyone with this link can view the terminal in read-only mode.', `${CPath.WebRootUrl()}cmd/terminal-proxy?port=${port}`);
+function termShowShareLink(token) {
+    showShareLinkModal('Terminal Share Link', 'Anyone with this link can view the terminal in read-only mode.', `${CPath.WebRootUrl()}cmd/terminal-proxy?token=${token}`);
 }
 function aiShowShareLink(sessionId, title) {
     showShareLinkModal('AI Chat Share Link', `Anyone with this link can view the chat: <strong>${aiEscapeHtml(title)}</strong>`, `${CPath.WebRootArtgineUrl()}artgine/server/html/Chat.html?session=${encodeURIComponent(sessionId)}&share=1`);
@@ -1071,6 +1076,11 @@ termNewBtn.addEventListener('click', () => termStartNew('cmd'));
 const schedNewBtn = CDOM.ID("schedNewBtn");
 const schedSessionList = CDOM.ID("schedSessionList");
 function schedIntervalStr(s) {
+    if (s.timeMode) {
+        const hh = String(s.hour ?? 0).padStart(2, '0');
+        const mm = String(s.minute ?? 0).padStart(2, '0');
+        return `${hh}:${mm}`;
+    }
     const parts = [`${s.delay}s`];
     if (s.count > 0)
         parts.push(`×${s.count}`);
@@ -1149,26 +1159,53 @@ function schedOpenModal(existing) {
             </div>
         </div>
         <div class="mb-2">
-            <div class="d-flex gap-2">
-                <div class="flex-fill">
-                    <label class="form-label small text-secondary mb-1">Delay (sec)</label>
-                    <input id="sched-delay" type="number" min="1" class="form-control form-control-sm" placeholder="e.g. 60" value="${existing?.delay ?? 60}">
+            <div class="d-flex gap-1 mb-2">
+                <button id="sched-tab-interval" type="button" class="btn btn-sm flex-fill ${!(existing?.timeMode) ? 'btn-primary' : 'btn-outline-secondary'}">Interval</button>
+                <button id="sched-tab-time"     type="button" class="btn btn-sm flex-fill ${existing?.timeMode ? 'btn-primary' : 'btn-outline-secondary'}">Time</button>
+            </div>
+            <div id="sched-panel-interval" style="display:${!(existing?.timeMode) ? '' : 'none'}">
+                <div class="d-flex gap-2 mb-2">
+                    <div class="flex-fill">
+                        <label class="form-label small text-secondary mb-1">Delay (sec)</label>
+                        <input id="sched-delay" type="number" min="1" class="form-control form-control-sm" placeholder="e.g. 60" value="${existing?.delay ?? 60}">
+                    </div>
+                    <div class="flex-fill">
+                        <label class="form-label small text-secondary mb-1">Count (0=infinite)</label>
+                        <input id="sched-count" type="number" min="0" class="form-control form-control-sm" placeholder="0" value="${existing?.count ?? 0}">
+                    </div>
                 </div>
-                <div class="flex-fill">
-                    <label class="form-label small text-secondary mb-1">Count (0=infinite)</label>
-                    <input id="sched-count" type="number" min="0" class="form-control form-control-sm" placeholder="0" value="${existing?.count ?? 0}">
+                <div class="d-flex gap-2">
+                    <div class="flex-fill">
+                        <label class="form-label small text-secondary mb-1">Start offset (sec, 0=now)</label>
+                        <input id="sched-start" type="number" min="0" class="form-control form-control-sm" placeholder="0" value="${existing?.start ?? 0}">
+                    </div>
+                    <div class="flex-fill">
+                        <label class="form-label small text-secondary mb-1">End offset (sec, 0=never)</label>
+                        <input id="sched-end" type="number" min="0" class="form-control form-control-sm" placeholder="0" value="${existing?.end ?? 0}">
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="mb-2">
-            <div class="d-flex gap-2">
-                <div class="flex-fill">
-                    <label class="form-label small text-secondary mb-1">Start offset (sec, 0=now)</label>
-                    <input id="sched-start" type="number" min="0" class="form-control form-control-sm" placeholder="0" value="${existing?.start ?? 0}">
+            <div id="sched-panel-time" style="display:${existing?.timeMode ? '' : 'none'}">
+                <div class="mb-2">
+                    <label class="form-label small text-secondary mb-1">Days of Week</label>
+                    <div class="d-flex gap-1 flex-wrap">
+                        ${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((lbl, i) => `<button type="button" class="sched-day-btn btn btn-sm ${(existing?.days ?? []).includes(i) ? 'btn-primary' : 'btn-outline-secondary'}" data-day="${i}">${lbl}</button>`).join('')}
+                    </div>
                 </div>
-                <div class="flex-fill">
-                    <label class="form-label small text-secondary mb-1">End offset (sec, 0=never)</label>
-                    <input id="sched-end" type="number" min="0" class="form-control form-control-sm" placeholder="0" value="${existing?.end ?? 0}">
+                <div class="d-flex gap-2 align-items-end">
+                    <div class="flex-fill">
+                        <label class="form-label small text-secondary mb-1">Hour (0–23)</label>
+                        <select id="sched-hour" class="form-select form-select-sm">
+                            ${Array.from({ length: 24 }, (_, h) => `<option value="${h}" ${(existing?.hour ?? 9) === h ? 'selected' : ''}>${String(h).padStart(2, '0')}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="flex-fill">
+                        <label class="form-label small text-secondary mb-1">Minute</label>
+                        <select id="sched-minute" class="form-select form-select-sm">
+                            ${Array.from({ length: 12 }, (_, i) => i * 5).map(m => `<option value="${m}" ${(existing?.minute ?? 0) === m ? 'selected' : ''}>${String(m).padStart(2, '0')}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
                 </div>
             </div>
         </div>
@@ -1227,14 +1264,30 @@ function schedOpenModal(existing) {
         };
         modeBtns.forEach(b => b.addEventListener('click', () => updateMode(b.dataset.mode)));
         updateMode(selectedMode);
+        let isTimeMode = existing?.timeMode ?? false;
+        const tabInterval = container.querySelector('#sched-tab-interval');
+        const tabTime = container.querySelector('#sched-tab-time');
+        const panelInterval = container.querySelector('#sched-panel-interval');
+        const panelTime = container.querySelector('#sched-panel-time');
+        const switchTab = (toTime) => {
+            isTimeMode = toTime;
+            tabInterval.className = `btn btn-sm flex-fill ${!toTime ? 'btn-primary' : 'btn-outline-secondary'}`;
+            tabTime.className = `btn btn-sm flex-fill ${toTime ? 'btn-primary' : 'btn-outline-secondary'}`;
+            panelInterval.style.display = toTime ? 'none' : '';
+            panelTime.style.display = toTime ? '' : 'none';
+        };
+        tabInterval.addEventListener('click', () => switchTab(false));
+        tabTime.addEventListener('click', () => switchTab(true));
+        const dayBtns = container.querySelectorAll('.sched-day-btn');
+        dayBtns.forEach(b => b.addEventListener('click', () => {
+            const active = b.classList.contains('btn-primary');
+            b.classList.toggle('btn-primary', !active);
+            b.classList.toggle('btn-outline-secondary', active);
+        }));
         const doSave = async () => {
             const name = (container.querySelector('#sched-name')).value.trim();
             const tkey = (container.querySelector('#sched-tkey')).value.trim();
             const command = (container.querySelector('#sched-cmd')).value.trim();
-            const delay = Math.max(0, parseInt((container.querySelector('#sched-delay')).value) || 0);
-            const count = Math.max(0, parseInt((container.querySelector('#sched-count')).value) || 0);
-            const start = Math.max(0, parseInt((container.querySelector('#sched-start')).value) || 0);
-            const end = Math.max(0, parseInt((container.querySelector('#sched-end')).value) || 0);
             const cwd = (container.querySelector('#sched-cwd')).value.trim();
             const allow = (container.querySelector('#sched-allow')).checked;
             const mcp = (container.querySelector('#sched-mcp')).checked;
@@ -1243,15 +1296,44 @@ function schedOpenModal(existing) {
                 alert('Name, terminal key, and command are required');
                 return;
             }
-            if (delay === 0) {
-                alert('Delay must be at least 1 second');
-                return;
-            }
             const params = new URLSearchParams({ name, terminalKey: tkey, mode: selectedMode, command,
-                delay: String(delay), count: String(count), start: String(start), end: String(end),
-                allow: allow ? '1' : '0', mcp: mcp ? '1' : '0', mdcopy: mdcopy ? '1' : '0' });
+                allow: allow ? '1' : '0', mcp: mcp ? '1' : '0', mdcopy: mdcopy ? '1' : '0',
+                timeMode: isTimeMode ? '1' : '0' });
             if (cwd)
                 params.set('cwd', cwd);
+            if (isTimeMode) {
+                const selectedDays = Array.from(dayBtns).filter(b => b.classList.contains('btn-primary')).map(b => Number(b.dataset.day));
+                if (selectedDays.length === 0) {
+                    alert('Select at least one day');
+                    return;
+                }
+                const hh = parseInt((container.querySelector('#sched-hour')).value) || 0;
+                const mm = parseInt((container.querySelector('#sched-minute')).value) || 0;
+                params.set('days', selectedDays.join(','));
+                params.set('hour', String(hh));
+                params.set('minute', String(mm));
+                params.set('delay', '60');
+                params.set('count', '0');
+                params.set('start', '0');
+                params.set('end', '0');
+            }
+            else {
+                const delay = Math.max(0, parseInt((container.querySelector('#sched-delay')).value) || 0);
+                const count = Math.max(0, parseInt((container.querySelector('#sched-count')).value) || 0);
+                const start = Math.max(0, parseInt((container.querySelector('#sched-start')).value) || 0);
+                const end = Math.max(0, parseInt((container.querySelector('#sched-end')).value) || 0);
+                if (delay === 0) {
+                    alert('Delay must be at least 1 second');
+                    return;
+                }
+                params.set('delay', String(delay));
+                params.set('count', String(count));
+                params.set('start', String(start));
+                params.set('end', String(end));
+                params.set('days', '');
+                params.set('hour', '0');
+                params.set('minute', '0');
+            }
             const r = await authedFetch(`${CPath.WebRootUrl()}cmd/schedule-set?${params.toString()}`);
             const j = await r.json();
             if (!j.ok) {
@@ -1365,16 +1447,16 @@ function goNextSession(dir) {
         return true;
     }
     else if (subtab === 'term') {
-        const items = Array.from(termSessionList.querySelectorAll('[data-port]'));
+        const items = Array.from(termSessionList.querySelectorAll('[data-token]'));
         if (items.length === 0)
             return false;
         const curIdx = activeFrameKey?.startsWith('term:')
-            ? items.findIndex(el => `term:${el.dataset.port}` === activeFrameKey)
+            ? items.findIndex(el => `term:${el.dataset.token}` === activeFrameKey)
             : -1;
         const nxt = curIdx === -1 ? 0 : Math.max(0, Math.min(items.length - 1, curIdx + dir));
         if (nxt === curIdx)
             return false;
-        termConnectSession(parseInt(items[nxt].dataset.port), false);
+        termConnectSession(items[nxt].dataset.token, false);
         items[nxt].scrollIntoView({ block: 'nearest' });
         return true;
     }
@@ -1984,6 +2066,10 @@ CDOM.ID("ai-tab").addEventListener("shown.bs.tab", () => {
     showAiTermSubtab();
     aiShowAuthOrLoad();
     updateBrowserFrameVisibility();
+});
+CDOM.ID("ai-tab").addEventListener("click", () => {
+    if (CDOM.ID("ai-tab").classList.contains("active"))
+        goProviderStatusPage();
 });
 CDOM.ID("ai-tab").addEventListener("hidden.bs.tab", () => updateBrowserFrameVisibility());
 CDOM.ID("ai-browser-subtab").addEventListener("shown.bs.tab", () => updateBrowserFrameVisibility());

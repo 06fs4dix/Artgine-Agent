@@ -1,4 +1,5 @@
-Artgine-Agent는 [Artgine](https://github.com/06fs4dix/Artgine) 엔진 위에서 동작하는 웹 기반 에이전트 인터페이스입니다. 파일 브라우저, AI 어시스턴트, 터미널을 하나의 앱으로 제공하며, Artgine 데스크톱 또는 웹 서버를 통해 실행됩니다.
+Artgine-Agent는 [Artgine](https://github.com/06fs4dix/Artgine) 엔진 위에서 동작하는 웹 기반 에이전트 인터페이스입니다. 
+파일 브라우저, AI 어시스턴트, 터미널을 하나의 앱으로 제공하며, Artgine 데스크톱 또는 웹 서버를 통해 실행됩니다.
 
 > Language **[English](README.md)**
 
