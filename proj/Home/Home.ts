@@ -22,7 +22,7 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mr0mvqwf_2";
+gPF.mVersion = "mr21czv8_2";
 
 import {CAtelier} from "../../Artgine/artgine/app/CAtelier.js";
 
@@ -1799,6 +1799,10 @@ browserNewBtn.addEventListener('click', () => {
                 <input id="brow-height" type="number" min="1" class="form-control form-control-sm" value="720">
             </div>
         </div>
+        <div class="mb-3 form-check">
+            <input class="form-check-input" type="checkbox" id="brow-stealth">
+            <label class="form-check-label small text-secondary" for="brow-stealth">Stealth</label>
+        </div>
         <div class="d-flex justify-content-between">
             <button id="brow-open" class="btn btn-primary">Open</button>
             <button id="brow-cancel" class="btn btn-danger ms-2">Cancel</button>
@@ -1815,6 +1819,7 @@ browserNewBtn.addEventListener('click', () => {
         const ttlInput   = container.querySelector<HTMLInputElement>('#brow-ttl')!;
         const widthInput = container.querySelector<HTMLInputElement>('#brow-width')!;
         const heightInput = container.querySelector<HTMLInputElement>('#brow-height')!;
+        const stealthCheck = container.querySelector<HTMLInputElement>('#brow-stealth')!;
 
         const doOpen = async () => {
             const url = urlInput.value.trim();
@@ -1823,12 +1828,13 @@ browserNewBtn.addEventListener('click', () => {
             const ttl = parseInt(ttlInput.value) || 300;
             const width = parseInt(widthInput.value);
             const height = parseInt(heightInput.value);
+            const stealth = stealthCheck.checked;
             modal.Close();
             try {
                 const r = await authedFetch(`${CPath.WebRootUrl()}PlayWright/push`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url, ...(browser ? { browser } : {}), ttl, logSize: 200, width, height })
+                    body: JSON.stringify({ url, ...(browser ? { browser } : {}), ttl, logSize: 200, width, height, stealth })
                 });
                 const j = await r.json();
                 if (!j.ok) { CAlert.E(j.msg || 'Failed'); return; }
@@ -3736,5 +3742,6 @@ function memoNotifyRootChanged() {
     memoRenderEmptyLog();
     memoShowAuthOrLoad();
 }
+
 
 
