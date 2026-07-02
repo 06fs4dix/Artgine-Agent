@@ -1,17 +1,16 @@
+## 소개
+
 Artgine-Agent는 [Artgine](https://github.com/06fs4dix/Artgine) 엔진 위에서 동작하는 웹 기반 에이전트 인터페이스입니다. 
 파일 브라우저, AI 어시스턴트, 터미널을 하나의 앱으로 제공하며, Artgine 데스크톱 또는 웹 서버를 통해 실행됩니다.
 
-> Language **[English](README.md)**
+[소개 페이지](https://06fs4dix.github.io/Artgine/help/artgine-agent-promo.html)
 
-## 사용 가이드
-
-**[> 소개 ](https://06fs4dix.github.io/Artgine/help/artgine-agent-promo.html)**
-
-**[> 튜토리얼 ](https://06fs4dix.github.io/Artgine/help/artgine-agent-tutorial.html)**
-
-
+## 언어
+**[English](README.md)**
 
 ## 시작하기
+
+[튜토리얼](https://06fs4dix.github.io/Artgine/help/artgine-agent-tutorial.html)
 
 ```bash
 git clone --recursive https://github.com/06fs4dix/Artgine-Agent.git
@@ -37,20 +36,20 @@ npm start
 | Windows  | [Artgine-win32-x64.zip](https://github.com/06fs4dix/Artgine-Agent/releases/download/AI/Artgine-win32-x64.zip) |
 | Linux    | [Artgine-linux-x64.zip](https://github.com/06fs4dix/Artgine-Agent/releases/download/AI/Artgine-linux-x64.zip) |
 
+## 설명
 
+### 주요 기능
 
-## 주요 기능
-
-### RDP 탭 `F3`
+#### RDP 탭 `F3`
 로컬 또는 원격 Home.html 화면을 바로 확인합니다. 입력 모드를 켜면 키보드와 마우스가 대상 화면으로 전달됩니다.
 
-### 파일 탭 `F1` / `F2`
+#### 파일 탭 `F1` / `F2`
 서버의 파일을 탐색하고 관리합니다. 폴더 이동, 이미지/오디오/비디오 재생, `.ts` `.js` `.html` `.json` `.txt` 파일의 Monaco 에디터 편집을 지원합니다. Git/SVN 설치 시 파일 옆에 버전 관리 상태 배지가 표시됩니다.
 
 - **`F1` File Manager** — 루트 선택 및 버전 관리 작업 (Git/SVN).
 - **`F2` File Search** — 파일명 재귀 검색; 검색 결과에서 해당 위치로 바로 이동.
 
-### AI 탭 `F4`
+#### AI 탭 `F4`
 AI 채팅, 터미널, 웹 세션을 iframe 기반 패널에서 관리합니다.
 
 - **Chat** — Claude, Codex, Antigravity, OpenCode 프로바이더를 지원하는 멀티 세션 AI 채팅. 세션 상태: 🔴 미연결 · 🟡 처리 중 · 🟢 대기 중.
@@ -96,7 +95,7 @@ AI 채팅, 터미널, 웹 세션을 iframe 기반 패널에서 관리합니다.
 
 전체 단축키 목록은 [튜토리얼](https://06fs4dix.github.io/Artgine/help/artgine-agent-tutorial.html)에서 확인하세요.
 
-## AI 폴더 (`ai/`)
+### AI 폴더 (`ai/`)
 
 프로젝트 루트의 `ai/` 폴더는 이 프로젝트의 에이전트 구동 환경을 관리합니다.
 
@@ -104,4 +103,3 @@ AI 채팅, 터미널, 웹 세션을 iframe 기반 패널에서 관리합니다.
 - **`skill/`** — 터미널 입력 바에서 단축 호출 가능한 커스텀 매크로 스크립트.
 - **`workspace/`** — 세션별로 격리된 임시 작업 디렉토리 (런타임 생성).
 - **`ctx/`** — 에이전트 세션 로그 및 대화 기록.
-

@@ -1,17 +1,15 @@
+## Introduction
 Artgine-Agent is a web-based agent interface built on the [Artgine](https://github.com/06fs4dix/Artgine) engine. 
 It provides a file browser, AI assistant, and terminal in a single app, served through the Artgine desktop or web server.
 
-> Language **[한국어](README-ko.md)**
+[Take a Look](https://06fs4dix.github.io/Artgine/help/artgine-agent-promo.html)
 
-## Usage Guide
-
-**[> Take a Look](https://06fs4dix.github.io/Artgine/help/artgine-agent-promo.html)**
-
-**[> Tutorial](https://06fs4dix.github.io/Artgine/help/artgine-agent-tutorial.html)**
-
-
+## Language
+**[한국어](README-ko.md)**
 
 ## Getting Started
+
+[Tutorial](https://06fs4dix.github.io/Artgine/help/artgine-agent-tutorial.html)
 
 ```bash
 git clone --recursive https://github.com/06fs4dix/Artgine-Agent.git
@@ -37,20 +35,20 @@ Download and extract the archive for your platform, then run the included `Artgi
 | Windows  | [Artgine-win32-x64.zip](https://github.com/06fs4dix/Artgine-Agent/releases/download/AI/Artgine-win32-x64.zip) |
 | Linux    | [Artgine-linux-x64.zip](https://github.com/06fs4dix/Artgine-Agent/releases/download/AI/Artgine-linux-x64.zip) |
 
+## Description
 
+### Features at a Glance
 
-## Features at a Glance
-
-### RDP tab `F3`
+#### RDP tab `F3`
 View a local or remote Home.html screen directly. Enable input mode to forward keyboard and mouse events to the target screen.
 
-### Files tab `F1` / `F2`
+#### Files tab `F1` / `F2`
 Browse and manage files on the server — navigate folders, view images, play audio/video, and edit `.ts` `.js` `.html` `.json` `.txt` files with Monaco editor. Git/SVN status badges appear alongside files when installed.
 
 - **`F1` File Manager** — Root selection and version control operations (Git/SVN).
 - **`F2` File Search** — Recursive filename search; jump to location from results.
 
-### AI tab `F4`
+#### AI tab `F4`
 Manage AI chat, terminal, and web sessions in an iframe-based panel.
 
 - **Chat** — Multi-session AI chat supporting Claude, Codex, Antigravity, and OpenCode providers. Sessions show status colors: 🔴 disconnected · 🟡 busy · 🟢 idle.
@@ -96,7 +94,7 @@ Manage AI chat, terminal, and web sessions in an iframe-based panel.
 
 See the full reference in the [tutorial](https://06fs4dix.github.io/Artgine/help/artgine-agent-tutorial.html).
 
-## AI Folder (`ai/`)
+### AI Folder (`ai/`)
 
 The `ai/` folder manages agent configuration for this project:
 
@@ -104,4 +102,3 @@ The `ai/` folder manages agent configuration for this project:
 - **`skill/`** — Custom macro scripts callable from the terminal input bar.
 - **`workspace/`** — Isolated per-session working directories created at runtime.
 - **`ctx/`** — Agent session logs and conversation history.
-
