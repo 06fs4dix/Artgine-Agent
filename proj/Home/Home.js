@@ -18,7 +18,7 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mr6gy4wn_4";
+gPF.mVersion = "mrami00a_4";
 import { CAtelier } from "../../Artgine/artgine/app/CAtelier.js";
 var gAtl = new CAtelier();
 gAtl.mPF = gPF;
@@ -32,8 +32,9 @@ import { CLan } from "../../Artgine/artgine/basic/CLan.js";
 import { CFecth } from "../../Artgine/artgine/network/CFecth.js";
 import { CPath } from "../../Artgine/artgine/basic/CPath.js";
 import { getAuthToken, setAuthToken, removeAuthToken } from "../../Artgine/artgine/server/CAuthToken.js";
-import { CFileViewer, CMDViewer, CSheetViewer, CModalStackMsg, CModalMusic } from "../../Artgine/artgine/util/CModalUtil.js";
+import { CFileViewer, CMDViewer, CSheetViewer, CModalStackMsg, CModalMusic, CORMViewer } from "../../Artgine/artgine/util/CModalUtil.js";
 import { Bootstrap } from "../../Artgine/artgine/basic/Bootstrap.js";
+import { CAuthInfo } from "../../Artgine/artgine/network/CAuthInfo.js";
 if (gPF.mServer != "webServer")
     CAlert.E("Server setting is invalid.");
 CUtilWeb.Parameter("");
@@ -115,7 +116,7 @@ async function loadAiProviderStatus() {
         btn.disabled = true;
     icon?.classList.add('spin');
     try {
-        const r = await fetch(CPath.WebRootUrl() + 'cmd/provider-state');
+        const r = await fetch(CPath.WebRootUrl() + 'AIInfo/provider-state');
         const resp = await r.json();
         const node = resp.node;
         _nodeInstalled = !!node?.installed;
@@ -141,10 +142,11 @@ async function loadAiProviderStatus() {
                 : `<span class="d-flex align-items-center gap-1"><i class="bi ${icon}"></i>${status}</span>`;
             const pct = (v) => Math.round(v * 100);
             const usageParts = [];
-            if (p.usage?.fiveHour >= 0)
-                usageParts.push(`5h ${pct(p.usage.fiveHour)}%`);
-            if (p.usage?.weekly >= 0)
-                usageParts.push(`${CLan.Get('ai.weekly', '주간')} ${pct(p.usage.weekly)}%`);
+            const showUsage = p.authenticated && p.usage;
+            if (showUsage) {
+                usageParts.push(p.usage.fiveHour >= 0 ? `5h ${pct(p.usage.fiveHour)}%` : `5h ?`);
+                usageParts.push(p.usage.weekly >= 0 ? `${CLan.Get('ai.weekly', '주간')} ${pct(p.usage.weekly)}%` : `${CLan.Get('ai.weekly', '주간')} ?`);
+            }
             const usageHtml = usageParts.length
                 ? `<div class="text-secondary mt-1" style="font-size:0.8em;">${usageParts.join(' · ')} ${CLan.Get('ai.usageRemaining', '남음')}</div>`
                 : '';
@@ -174,6 +176,89 @@ async function loadAiProviderStatus() {
 }
 loadAiProviderStatus();
 document.getElementById('aiProviderRefreshBtn')?.addEventListener('click', () => loadAiProviderStatus());
+document.getElementById('aiAddOllamaBtn')?.addEventListener('click', () => showAddOllamaModal());
+function showAddOllamaModal() {
+    const uid = `ollama_${Date.now()}`;
+    const modal = new CModal();
+    modal.SetHeader('Add OpenCode Model');
+    modal.SetBody(`
+        <div class="small text-secondary mb-3">
+            <p class="mb-2">Register a local <strong>Ollama</strong> or <strong>LM Studio</strong> server as an OpenCode model provider.</p>
+            <p class="mb-2">Paste the server address in <strong>any form</strong> &mdash; only the IP and port are extracted and recombined into the correct base URL <code>http://&lt;ip&gt;:&lt;port&gt;/v1</code>. All of these work:</p>
+            <ul class="mb-2 ps-3">
+                <li><code>127.0.0.1:11434</code></li>
+                <li><code>http://127.0.0.1:11434</code></li>
+                <li><code>http://127.0.0.1:11434/v1/models</code></li>
+            </ul>
+            <p class="mb-2">Ollama is tried first (native API); if that doesn't respond, LM Studio's OpenAI-compatible <code>/v1/models</code> is tried next. Between the two, most local model runners are covered.</p>
+            <p class="mb-2">The server's model list is looked up automatically and written into <code>opencode.json</code> (it is created via CreateRole if missing). Tool-use support is detected for Ollama; for LM Studio it can't be queried via API, so it's assumed enabled &mdash; edit <code>opencode.json</code> manually if a model doesn't actually support tools.</p>
+            <p class="mb-0">If the server requires authentication, enter its API key below &mdash; it's sent as a Bearer token and saved into <code>opencode.json</code>. Leave blank for open/unauthenticated servers.</p>
+        </div>
+        <div class="input-group mb-2">
+            <input id="${uid}" type="text" class="form-control form-control-sm" placeholder="e.g. 127.0.0.1:11434">
+            <button id="${uid}_go" class="btn btn-primary btn-sm">Add</button>
+        </div>
+        <input id="${uid}_key" type="text" class="form-control form-control-sm" placeholder="API key (optional)">
+        <div id="${uid}_result" class="small mt-2"></div>
+    `);
+    modal.SetTitle(CModal.eTitle.TextClose);
+    modal.SetSize(560, 400);
+    modal.Open(CModal.ePos.Center);
+    setTimeout(() => {
+        const input = document.getElementById(uid);
+        const keyInput = document.getElementById(`${uid}_key`);
+        const goBtn = document.getElementById(`${uid}_go`);
+        const result = document.getElementById(`${uid}_result`);
+        input?.focus();
+        const submit = async () => {
+            const host = (input?.value ?? '').trim();
+            const apiKey = (keyInput?.value ?? '').trim();
+            if (!host) {
+                input?.focus();
+                return;
+            }
+            if (goBtn)
+                goBtn.disabled = true;
+            if (result)
+                result.innerHTML = '<span class="text-secondary"><i class="bi bi-hourglass-split"></i> …</span>';
+            try {
+                const r = await authedFetch(CPath.WebRootUrl() + 'AIInfo/push-opencode-model', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify(apiKey ? { host, apiKey } : { host }),
+                });
+                const j = await r.json();
+                if (!j.ok) {
+                    if (result) {
+                        const msg = r.status === 401 ? 'Login required' : (j.msg || 'Failed');
+                        result.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${aiEscapeHtml(msg)}</span>`;
+                    }
+                    return;
+                }
+                const models = j.models ?? [];
+                const list = models.map(m => `${aiEscapeHtml(m.name)}${m.tools ? ' <span class="badge bg-success">tools</span>' : ''}`).join(', ');
+                if (result)
+                    result.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill"></i> ${aiEscapeHtml(j.provider)} — ${models.length} models</span><div class="text-secondary mt-1">${list}</div>`;
+                CAlert.Info(`${j.provider}: ${models.length} models → opencode.json`);
+            }
+            catch (e) {
+                if (result)
+                    result.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${aiEscapeHtml(e?.message ?? String(e))}</span>`;
+            }
+            finally {
+                if (goBtn)
+                    goBtn.disabled = false;
+            }
+        };
+        goBtn?.addEventListener('click', submit);
+        const onEnter = (e) => { if (e.key === 'Enter') {
+            e.preventDefault();
+            submit();
+        } };
+        input?.addEventListener('keydown', onEnter);
+        keyInput?.addEventListener('keydown', onEnter);
+    }, MODAL_DOM_DELAY);
+}
 function openAiSite(appUrl, webUrl) {
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     if (isMobile && appUrl !== webUrl) {
@@ -202,7 +287,7 @@ function goProviderStatusPage() {
 async function ensureNodeInstalled() {
     if (_nodeInstalled === null) {
         try {
-            const r = await fetch(CPath.WebRootUrl() + 'cmd/provider-state');
+            const r = await fetch(CPath.WebRootUrl() + 'AIInfo/provider-state');
             const resp = await r.json();
             _nodeInstalled = !!resp?.node?.installed;
         }
@@ -565,7 +650,7 @@ function aiLoadSession(sid) {
     termRefreshSessions();
 }
 async function aiRefreshSessions() {
-    if (document.querySelector('.dropdown-menu.show'))
+    if (aiSessionList.querySelector('.dropdown-menu.show'))
         return;
     const token = getAuthToken(CPath.WebRootUrl());
     if (!token) {
@@ -573,7 +658,7 @@ async function aiRefreshSessions() {
         return;
     }
     try {
-        const r = await authedFetch(CPath.WebRootUrl() + 'ai/chat/sessions?limit=30');
+        const r = await authedFetch(CPath.WebRootUrl() + 'AIChat/sessions?limit=30');
         if (r.status === 401) {
             removeAuthToken(CPath.WebRootUrl());
             refreshFileAuthState();
@@ -630,7 +715,7 @@ async function aiRefreshSessions() {
                     delConfirm.SetBody(`Delete "${aiEscapeHtml(s.title)}"?`);
                     delConfirm.SetConfirm(CConfirm.eConfirm.YesNo, [
                         async () => {
-                            await authedFetch(`${CPath.WebRootUrl()}ai/chat/session?id=${s.sessionId}`, { method: 'DELETE' });
+                            await authedFetch(`${CPath.WebRootUrl()}AIChat/session?id=${s.sessionId}`, { method: 'DELETE' });
                             destroyFrame(key);
                             aiRefreshSessions();
                             termRefreshSessions();
@@ -1242,7 +1327,7 @@ function schedOpenModal(existing) {
                         <div class="d-flex gap-4">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="sched-clear" ${existing?.clear ? 'checked' : ''}>
-                                <label class="form-check-label small text-secondary" for="sched-clear">클리어</label>
+                                <label class="form-check-label small text-secondary" for="sched-clear">Clear</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="sched-mcp" ${(existing?.mcp ?? true) ? 'checked' : ''}>
@@ -1369,6 +1454,13 @@ setInterval(() => {
         browserRefreshList();
     }
 }, 5000);
+window.addEventListener('blur', () => {
+    document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+        const toggle = menu.parentElement?.querySelector('[data-bs-toggle="dropdown"]');
+        if (toggle)
+            window.bootstrap.Dropdown.getInstance(toggle)?.hide();
+    });
+});
 window.addEventListener('message', (e) => {
     if (e.data?.type === 'ai-sessions-changed') {
         pendingNewSid = null;
@@ -2134,14 +2226,27 @@ const EXT_KIND = {
     soundlist: 'soundlist', html: 'html', md: 'md',
     ts: 'code', js: 'code', txt: 'code', json: 'code',
     csv: 'sheet', xlsx: 'sheet', xls: 'sheet',
+    sqlite: 'orm', db: 'orm',
 };
 const FILE_ICON = {
     folder: 'bi-folder-fill', image: 'bi-folder-image', audio: 'bi-folder-music',
     video: 'bi-folder-play', soundlist: 'bi-flower1', html: 'bi-file-earmark-code',
     code: 'bi-file-code', md: 'bi-file-earmark-text', sheet: 'bi-file-earmark-spreadsheet',
-    file: 'bi-file',
+    orm: 'bi-file-earmark-binary', file: 'bi-file',
 };
-const kindOf = (fl) => fl.file ? (EXT_KIND[fl.ext] ?? 'file') : 'folder';
+const isDbFolder = () => {
+    const trimmed = gPath.replace(/\/+$/, '');
+    const last = trimmed.substring(trimmed.lastIndexOf('/') + 1);
+    return last.toLowerCase() === 'db';
+};
+const kindOf = (fl) => {
+    if (fl.file) {
+        if (fl.ext === 'json' && isDbFolder())
+            return 'orm';
+        return EXT_KIND[fl.ext] ?? 'file';
+    }
+    return fl.name.toLowerCase().endsWith('.nedb') ? 'orm' : 'folder';
+};
 const downUrl = (fl) => gDown + gPath + fl.name;
 function saveEditedFile(filePath, base64) {
     const fileName = filePath.split('/').pop();
@@ -2150,23 +2255,26 @@ function saveEditedFile(filePath, base64) {
         .catch((e) => CAlert.E('저장 실패: ' + e.message));
 }
 const textToBase64 = (text) => btoa(unescape(encodeURIComponent(text)));
+function addFolderTracks(fl) {
+    const p2 = { path: gPath + fl.name + "/" };
+    if (RootPath)
+        p2.RootPath = RootPath;
+    if (RootUrl)
+        p2.RootUrl = RootUrl;
+    CFecth.Exe(FileApiUrl("File/List"), FileParam(p2), "json").then((data) => {
+        CAlert.Info(gPath + fl.name + "추가");
+        for (const fl2 of data.list) {
+            if (fl.name == fl2.name)
+                continue;
+            if (fl2.ext == "mp3" || fl2.ext == "ogg")
+                g_musicJBox.AddTrack(fl2.name, gDown + gPath + fl.name + "/" + fl2.name);
+        }
+        g_musicJBox.Play(0);
+    });
+}
 function openFolder(fl) {
     if (CDOM.IDValue("soundAddType") == "1") {
-        const p2 = { path: gPath + fl.name + "/" };
-        if (RootPath)
-            p2.RootPath = RootPath;
-        if (RootUrl)
-            p2.RootUrl = RootUrl;
-        CFecth.Exe(FileApiUrl("File/List"), FileParam(p2), "json").then((data) => {
-            CAlert.Info(gPath + fl.name + "추가");
-            for (const fl2 of data.list) {
-                if (fl.name == fl2.name)
-                    continue;
-                if (fl2.ext == "mp3" || fl2.ext == "ogg")
-                    g_musicJBox.AddTrack(fl2.name, gDown + gPath + fl.name + "/" + fl2.name);
-            }
-            g_musicJBox.Play(0);
-        });
+        addFolderTracks(fl);
     }
     else {
         FolderCD(gPath + fl.name + "/");
@@ -2248,6 +2356,20 @@ function openMd(fl) {
 function openSheet(fl) {
     new CSheetViewer([downUrl(fl)], async (filePath, base64) => saveEditedFile(filePath, base64)).Open();
 }
+function openOrm(fl) {
+    const remote = g_fileWebRootUrl !== CPath.WebRootUrl();
+    const serverUrl = remote ? g_fileWebRootUrl : '';
+    const token = remote ? GetFileToken() : '';
+    if (fl.file) {
+        if (fl.ext === 'json')
+            new CORMViewer(new CAuthInfo(), "ne", gRoot + gPath, serverUrl, token).Open();
+        else
+            new CORMViewer(new CAuthInfo(), "sqlite", gRoot + gPath + fl.name, serverUrl, token).Open();
+    }
+    else {
+        new CORMViewer(new CAuthInfo(), "ne", gRoot + gPath + fl.name + "/", serverUrl, token).Open();
+    }
+}
 function openGenericFile(fl) {
     CDOM.ID("ImageModalSrc").hidden = true;
     CDOM.ID("FileModalSrc").href = downUrl(fl);
@@ -2258,20 +2380,51 @@ function openGenericFile(fl) {
 const FILE_OPEN = {
     folder: openFolder, image: openImage, audio: openAudio, video: openVideo,
     soundlist: openSoundList, html: openHtml, code: openCode, md: openMd,
-    sheet: openSheet, file: openGenericFile,
+    sheet: openSheet, orm: openOrm, file: openGenericFile,
 };
+const LONG_PRESS_MS = 500;
+function makeLongPressHandlers(fl, kind) {
+    let pressTimer = null;
+    let longPressed = false;
+    const start = () => {
+        longPressed = false;
+        pressTimer = window.setTimeout(() => {
+            longPressed = true;
+            if (fl.file)
+                openGenericFile(fl);
+            else
+                addFolderTracks(fl);
+        }, LONG_PRESS_MS);
+    };
+    const cancel = () => { if (pressTimer != null) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+    } };
+    const click = () => { if (longPressed) {
+        longPressed = false;
+        return;
+    } FILE_OPEN[kind](fl); };
+    return {
+        onclick: click,
+        onmousedown: start, onmouseup: cancel, onmouseleave: cancel,
+        ontouchstart: start, ontouchend: cancel, ontouchcancel: cancel, ontouchmove: cancel,
+    };
+}
+function encodeQueryValue(_value) {
+    return encodeURIComponent(_value).replace(/%2F/g, '/');
+}
 function updateFileUrlBar() {
     const input = document.getElementById('fileUrlInput');
     if (!input)
         return;
     const url = new URL(location.href);
     url.search = '';
-    url.searchParams.set('path', gPath ?? '/');
+    const params = [`path=${encodeQueryValue(gPath ?? '/')}`];
     if (RootPath)
-        url.searchParams.set('RootPath', RootPath);
+        params.push(`RootPath=${encodeQueryValue(RootPath)}`);
     if (RootUrl)
-        url.searchParams.set('RootUrl', RootUrl);
-    input.value = url.toString();
+        params.push(`RootUrl=${encodeQueryValue(RootUrl)}`);
+    input.value = `${url.toString()}?${params.join('&')}`;
 }
 function DirListRefresh() {
     updateFileUrlBar();
@@ -2299,7 +2452,8 @@ function DirListRefresh() {
         index++;
         const kind = kindOf(fl);
         folderList.html.push({ "<>": "li", "class": "list-group-item list-group-item-action", "id": "fl" + fl.index,
-            "html": `<i class='bi ${FILE_ICON[kind]}'>${fl.name}${vcsTag(fl)}`, "onclick": () => FILE_OPEN[kind](fl) });
+            "html": `<i class='bi ${FILE_ICON[kind]}'>${fl.name}${vcsTag(fl)}`,
+            ...makeLongPressHandlers(fl, kind) });
         if (fl.file == true) {
             fileList.html.push({ "<>": "li", "class": "list-group-item list-group-item-action", "id": "fl" + fl.index,
                 "html": `<i class='bi bi-file'>${fl.name}${vcsTag(fl)}`, "onclick": () => Delete(fl.name) });
@@ -2629,6 +2783,7 @@ function showFileAdminModal() {
                 <span class="small text-secondary flex-shrink-0" title="Find from current path"><i class="bi bi-folder2-open"></i> PathTo</span>
                 <button id="fadm_chat_${uid}" class="btn btn-outline-primary btn-sm flex-fill">Chat</button>
                 <button id="fadm_term_${uid}" class="btn btn-outline-success btn-sm flex-fill">Terminal</button>
+                <button id="fadm_memo_${uid}" class="btn btn-outline-warning btn-sm flex-fill">Memo</button>
             </div>
             <hr class="my-0">
             <div class="accordion" id="fadm_acc_${uid}">
@@ -2643,6 +2798,7 @@ function showFileAdminModal() {
 <button id="fadm_folder_${uid}" class="btn btn-warning btn-sm">New Folder</button>
                             <button id="fadm_delete_${uid}" class="btn btn-danger btn-sm">Delete</button>
                             <button id="fadm_upload_${uid}" class="btn btn-primary btn-sm">Upload</button>
+                            <button id="fadm_orm_${uid}" class="btn btn-outline-success btn-sm">ORM Viewer</button>
                         </div>
                     </div>
                 </div>
@@ -2695,6 +2851,11 @@ function showFileAdminModal() {
             modal.Hide();
             CDOM.ID("uploadBtn").click();
         });
+        document.getElementById(`fadm_orm_${uid}`)?.addEventListener('click', () => {
+            modal.Close();
+            const remote = isRemoteServer();
+            new CORMViewer(new CAuthInfo(), null, '', remote ? g_fileWebRootUrl : '', remote ? GetFileToken() : '').Open();
+        });
         const isRemoteServer = () => g_fileWebRootUrl !== CPath.WebRootUrl();
         document.getElementById(`fadm_chat_${uid}`)?.addEventListener('click', () => {
             modal.Close();
@@ -2709,6 +2870,13 @@ function showFileAdminModal() {
             showTab('[data-bs-target="#ai-panel"]');
             setTimeout(() => showTab('ai-term-subtab'), 150);
             termStartNew('cmd', cwd || undefined);
+        });
+        document.getElementById(`fadm_memo_${uid}`)?.addEventListener('click', () => {
+            modal.Close();
+            const cwd = (gRoot ?? '') + (gPath ?? '');
+            showTab('memo-tab');
+            memoTryInit();
+            setTimeout(() => memoIframe?.contentWindow?.postMessage({ type: 'set-folder', folder: cwd }, '*'), 200);
         });
         const vcsPath = () => (gRoot ?? './') + (gPath ?? '');
         document.getElementById(`fadm_vcs_diff_${uid}`)?.addEventListener('click', () => openVcsDiff(vcsPath()));
@@ -3138,7 +3306,7 @@ window["NextPhoto"] = NextPhoto;
 const memoTab = CDOM.ID("memo-tab");
 const memoPanel = CDOM.ID("memo");
 let memoIframe = null;
-let memoLoadedRootUrl = null;
+let memoLoaded = false;
 function memoEnsureLayout() {
     if (memoIframe)
         return;
@@ -3151,9 +3319,9 @@ function memoEnsureLayout() {
 }
 function memoLoadFrame() {
     memoEnsureLayout();
-    if (memoLoadedRootUrl === g_fileWebRootUrl)
+    if (memoLoaded)
         return;
-    memoLoadedRootUrl = g_fileWebRootUrl;
+    memoLoaded = true;
     memoIframe.src = `${CPath.WebRootArtgineUrl()}artgine/server/html/Memo.html`;
 }
 memoEnsureLayout();
@@ -3168,11 +3336,18 @@ memoTab.addEventListener("shown.bs.tab", () => {
     memoTryInit();
     memoIframe?.contentWindow?.postMessage({ type: 'open-sidebar' }, '*');
     memoIframe?.contentWindow?.focus();
+    memoSendRemoteInfo();
 });
 if (memoTab.classList.contains("active"))
     memoTryInit();
+function memoSendRemoteInfo() {
+    const baseUrl = g_fileWebRootUrl === CPath.WebRootUrl() ? '' : g_fileWebRootUrl;
+    const token = baseUrl ? getAuthToken(baseUrl) : '';
+    setTimeout(() => memoIframe?.contentWindow?.postMessage({ type: 'set-remote', baseUrl, token }, '*'), 50);
+}
 function memoNotifyRootChanged() {
     if (!memoInited)
         return;
     memoLoadFrame();
+    memoSendRemoteInfo();
 }
