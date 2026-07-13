@@ -4,7 +4,7 @@
   "fullScreen": false,
   "program": "server",
   "url": "http://localhost:7000/Artgine-Agent",
-  "projectPath": "proj/Home",
+  "projectPath": "proj/Control",
   "page": "html",
   "server": "webServer",
   "github": false,
