@@ -22,7 +22,7 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mrjd2tm2_2";
+gPF.mVersion = "mrkn9f8b_2";
 
 import {CAtelier} from "../../Artgine/artgine/app/CAtelier.js";
 
@@ -37,7 +37,7 @@ await gAtl.Init([],"");
 import { CDOM } from "../../Artgine/artgine/basic/CDOM.js";
 import { CPath } from "../../Artgine/artgine/basic/CPath.js";
 import { CModal, CConfirm } from "../../Artgine/artgine/basic/CModal.js";
-import { CFileViewer } from "../../Artgine/artgine/util/CModalUtil.js";
+import { CMDViewer } from "../../Artgine/artgine/util/CModalUtil.js";
 import { CAlert } from "../../Artgine/artgine/basic/CAlert.js";
 import { CFecth } from "../../Artgine/artgine/network/CFecth.js";
 import { CHash } from "../../Artgine/artgine/basic/CHash.js";
@@ -201,6 +201,36 @@ loadAiProviderStatus();
 setInterval(() => loadAiProviderStatus(), 5 * 60 * 1000);
 document.getElementById('aiProviderRefreshBtn')?.addEventListener('click', () => loadAiProviderStatus());
 document.getElementById('aiAddOllamaBtn')?.addEventListener('click', () => showAddOllamaModal());
+document.getElementById('aiOpencodeStatusBtn')?.addEventListener('click', () => showOpencodeStatusModal());
+
+// 현재 로드된 settings.json으로 서버 재시작. CFileServer의 /File/Restart가 인증 확인 후
+// `npm run start -- <settings파일>`을 detached로 실행하고, Start.ts가 기존 프로세스를 kill한다.
+// (요청에 따라 비활성화: 버튼 클릭이 아무 동작도 하지 않도록 주석 처리)
+// document.getElementById('server-restart-btn')?.addEventListener('click', () => {
+//     if (!ctrlRequireAuthed()) return;
+//
+//     const warn = new CConfirm();
+//     warn.SetHeader('Restart Server');
+//     warn.SetBody('⚠️ This will immediately stop the currently running server. Continue?');
+//     warn.SetConfirm(CConfirm.eConfirm.YesNo, [
+//         () => {
+//             const confirm2 = new CConfirm();
+//             confirm2.SetHeader('Confirm Restart');
+//             confirm2.SetBody('Are you sure? Restart the server with the currently loaded settings file now.');
+//             confirm2.SetConfirm(CConfirm.eConfirm.YesNo, [
+//                 async () => {
+//                     try {
+//                         await authedFetch(CPath.WebRootUrl() + 'File/Restart', { method: 'POST' });
+//                     } catch (_) {}
+//                 },
+//                 () => {},
+//             ], ['Restart Now', 'Cancel']);
+//             confirm2.Open();
+//         },
+//         () => {},
+//     ], ['Continue', 'Cancel']);
+//     warn.Open();
+// });
 
 // Ollama/LM Studio(OpenAI 호환) 서버 주소를 입력받아 /AIInfo/push-ollama 로 등록한다.
 // 서버가 모델 목록·툴 지원 여부를 조회해 opencode.json의 커스텀 provider로 기록한다(없으면 CreateRole).
@@ -274,6 +304,75 @@ function showAddOllamaModal() {
     }, MODAL_DOM_DELAY);
 }
 
+// opencode.json에 등록해둔(Add OpenCode Model로 추가한) 커스텀 provider들의 실제 연결 상태를 조회해 테이블로 보여준다.
+// 서버가 각 provider의 baseURL에 직접 접속해 판단하므로(/AIInfo/opencode-provider-status), 가장 중요한 정보인
+// "연결됨/끊김"을 배지로 강조하고, 그 외 현재 로드된 모델·VRAM(가능한 경우)을 함께 보여준다.
+function showOpencodeStatusModal() {
+    const modal = new CModal();
+    modal.SetHeader('OpenCode Provider Status');
+    modal.SetBody(`
+        <div class="d-flex justify-content-end mb-2">
+            <button id="opencodeStatusRefreshBtn" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+                <i class="bi bi-arrow-clockwise"></i><span>Refresh</span>
+            </button>
+        </div>
+        <div id="opencodeStatusBody" class="small"><i class="bi bi-hourglass-split"></i> Loading...</div>
+    `);
+    modal.SetTitle(CModal.eTitle.TextClose);
+    modal.SetSize(680, 420);
+    modal.Open(CModal.ePos.Center);
+
+    const load = async () => {
+        const body = document.getElementById('opencodeStatusBody');
+        const refreshBtn = document.getElementById('opencodeStatusRefreshBtn') as HTMLButtonElement | null;
+        if (!body) return;
+        if (refreshBtn) refreshBtn.disabled = true;
+        body.innerHTML = '<i class="bi bi-hourglass-split"></i> Loading...';
+        try {
+            const r = await authedFetch(CPath.WebRootUrl() + 'AIInfo/opencode-provider-status');
+            if (r.status === 401) { body.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle"></i> Login required</span>'; return; }
+            const j = await r.json();
+            const providers: { key: string; label: string; backend: string; host: string; connected: boolean; error?: string; modelCount: number; running: { name: string; vramBytes?: number }[] }[] = j.providers ?? [];
+            if (!providers.length) {
+                body.innerHTML = '<span class="text-secondary">No registered OpenCode providers yet. Use "Add OpenCode Model" first.</span>';
+                return;
+            }
+            body.innerHTML = `
+                <table class="table table-sm table-borderless align-middle mb-0">
+                    <thead>
+                        <tr class="text-secondary" style="font-size:0.8em;">
+                            <th>Connection</th><th>Provider</th><th>Host</th><th>Models</th><th>Running</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${providers.map(p => `
+                            <tr>
+                                <td>${p.connected
+                                    ? '<span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Connected</span>'
+                                    : `<span class="badge bg-danger" title="${aiEscapeHtml(p.error ?? '')}"><i class="bi bi-x-circle-fill"></i> Disconnected</span>`}</td>
+                                <td>${aiEscapeHtml(p.label)}<div class="text-secondary" style="font-size:0.75em;">${aiEscapeHtml(p.backend)}</div></td>
+                                <td class="text-secondary">${aiEscapeHtml(p.host)}</td>
+                                <td>${p.modelCount}</td>
+                                <td>${p.running.length
+                                    ? p.running.map(m => `${aiEscapeHtml(m.name)}${m.vramBytes ? ` <span class="text-secondary">(${(m.vramBytes / 1e9).toFixed(1)}GB VRAM)</span>` : ''}`).join('<br>')
+                                    : '<span class="text-secondary">-</span>'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } catch (e: any) {
+            body.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${aiEscapeHtml(e?.message ?? String(e))}</span>`;
+        } finally {
+            if (refreshBtn) refreshBtn.disabled = false;
+        }
+    };
+    setTimeout(() => {
+        document.getElementById('opencodeStatusRefreshBtn')?.addEventListener('click', load);
+        load();
+    }, MODAL_DOM_DELAY);
+}
+
 // ---- RDP: Local + Remote는 사이드바 목록에서 공통 로직(Open Modal/New Window/Share/Delete)을 공유한다 ----
 const MODAL_DOM_DELAY = 100;
 
@@ -285,9 +384,12 @@ function postFrameVisible(f: HTMLIFrameElement | null | undefined, visible: bool
 
 function rdpRemoteWebRootUrl(input: string): string {
     const u = new URL(input);
-    const marker = "/proj/Home/Home.html";
-    const homeIdx = u.pathname.indexOf(marker);
-    const basePath = homeIdx >= 0 ? u.pathname.substring(0, homeIdx) : u.pathname;
+    // Home.html뿐 아니라 Control.html 등 "/proj/<프로젝트>/<파일>.html" 형태로 끝나는 진입점 URL이면
+    // 모두 그 앞부분을 서버 base URL로 인식한다(과거엔 Home.html 마커만 인식해, Control.html 주소를
+    // 그대로 넣으면 basePath가 pathname 전체가 되어 RemoteDesktop.html 등의 경로가 그 뒤에 그대로
+    // 이어붙는 잘못된 URL이 만들어졌다).
+    const m = u.pathname.match(/^(.*)\/proj\/[^\/]+\/[^\/]+\.html$/);
+    const basePath = m ? m[1] : u.pathname;
     return (u.origin + (basePath || "/")).replace(/\/+$/, '') + '/';
 }
 
@@ -1100,7 +1202,7 @@ CIframeMsg.Recv({
         memoSendRemoteInfo();
     },
     'file-opened': (data) => {
-        editorOpenFile(String(data.path ?? ''), String(data.baseUrl ?? ''), String(data.url ?? ''));
+        promptSourceAction(String(data.path ?? ''), String(data.baseUrl ?? ''), String(data.url ?? ''));
     },
     // Chat/Terminal은 새 세션 옵션 모달만 띄우고, 현재 보고 있는 탭(File 등)은 그대로 유지한다.
     'open-chat': (data) => chatStartNew(data.cwd || undefined),
@@ -1112,6 +1214,19 @@ CIframeMsg.Recv({
         setTimeout(() => { if (memoIframe?.contentWindow) CIframeMsg.Send(memoIframe.contentWindow, 'set-folder', { folder: data.folder ?? '' }); }, 200);
     },
     'terminal-path-tapped': (data) => termOpenTappedPath(String(data.path ?? ''), String(data.token ?? '')),
+    // 핸드오프 완료: 요약을 넘겨받은 새 프로바이더 세션으로 화면을 전환한다(기존 세션은 서버가 이미 종료함).
+    // 새 세션은 아직 pending(웹소켓이 붙어야 스폰)이라 /cmd/sessions 목록에 없으므로, termConnectSession의
+    // 'term:<token>' 키를 쓰면 곧 실행되는 termRenderList 정리 로직이 목록에 없는 그 프레임을 지워버린다.
+    // termStartNew와 동일하게 'term-new:' 접두어 키로 열어(정리 대상 제외) 스폰 후 실제 토큰으로 승격되게 한다.
+    'terminal-handoff': (data) => {
+        const newToken = String(data.newToken ?? '');
+        if (!newToken) return;
+        termActivatePane();
+        showTermFrame(`term-new:${Date.now()}`, `${CPath.WebRootUrl()}cmd/terminal-proxy?token=${newToken}`);
+        termRenderList();
+        setTimeout(termRenderList, 1500);
+        setTimeout(termRenderList, 4000);
+    },
 });
 
 // ---- 다운로드 탭 (MountDownloadTab) ----
@@ -1180,6 +1295,9 @@ function rdpPromptRemoteAuth(webRootUrl: string, onSuccess?: () => void) {
             if (j.ok) {
                 setAuthToken(webRootUrl, j.token!);
                 CAlert.Info("Permission granted");
+                if (pw === "artgine") {
+                    CAlert.Warning("You are using the default password. Please change it for security.");
+                }
                 onSuccess?.();
             } else {
                 CAlert.E("Wrong password: " + (j.msg ?? ""));
@@ -1202,6 +1320,21 @@ function rdpPromptRemoteAuth(webRootUrl: string, onSuccess?: () => void) {
         });
     }, MODAL_DOM_DELAY);
 }
+
+// 로컬 서버 인증 여부를 확인하고, 인증 안 됐으면 경고 메시지를 띄운다(File 탭 제외 다른 탭 전환 가드용).
+function ctrlRequireAuthed(): boolean {
+    if (getAuthToken(CPath.WebRootUrl())) return true;
+    CAlert.Warning("Authentication required. Please sign in first.");
+    return false;
+}
+// File 탭을 제외한 나머지 탭은 인증 전에는 전환되지 않도록 막는다. 트리거 방식(직접 클릭/사이드바
+// 클릭으로 인한 프로그램적 Tab.show() 호출)에 상관없이 'show.bs.tab'은 실제 전환 직전에 공통으로
+// 발생하므로 여기서 preventDefault()하면 그 뒤의 shown.bs.tab 기반 초기화(패널 로드 등)도 함께 막힌다.
+['rdp-panel-tab', 'chat-panel-tab', 'browser-panel-tab', 'editor-panel-tab', 'term-tab', 'memo-tab', 'download-tab'].forEach((tabId) => {
+    CDOM.ID(tabId).addEventListener('show.bs.tab', (e: Event) => {
+        if (!ctrlRequireAuthed()) e.preventDefault();
+    });
+});
 
 // Chat/Terminal/Browser 사이드바 목록이 인증 안 됨(토큰 없음/만료)으로 못 받아올 때 공용으로 쓰는
 // "로그인 필요" 안내 + Sign In 버튼. 클릭하면 로컬 서버(CPath.WebRootUrl())에 대해 rdpPromptRemoteAuth로
@@ -1255,6 +1388,11 @@ if (memoTab.classList.contains("active")) memoTryInit();
 // 안 되어 "이게 왜 맨 위에 있냐"는 혼란이 생긴다). 그래서 각 유형은 자기 데이터만 캐시에 갱신하고,
 // 실제 DOM 렌더링은 이 공용 renderSessionSidebar()가 세 캐시를 합쳐서 한 번에 그린다.
 const sessionSidebarList = CDOM.ID("session-sidebar-list") as HTMLDivElement;
+// 마우스가 사이드바 위에 있는 동안 재정렬하면 클릭 순간 항목 위치가 바뀌어 엉뚱한 세션이 선택될 수 있어,
+// 호버 중에는 renderSessionSidebar()의 재정렬/재구축을 건너뛴다.
+let sessionSidebarHovering = false;
+sessionSidebarList.addEventListener('mouseenter', () => { sessionSidebarHovering = true; });
+sessionSidebarList.addEventListener('mouseleave', () => { sessionSidebarHovering = false; renderSessionSidebar(); });
 
 // ---- 완료 알림(Home.html과 동일): 포커스 여부에 따라 브라우저 알림 또는 우측 상단 토스트로 표시 ----
 let _activeNotifCallback: (() => void) | null = null;
@@ -1333,6 +1471,7 @@ let lastTermSessions: { token: string; mode: string; key?: string; lastMsg: stri
 
 function renderSessionSidebar() {
     if (sessionSidebarList.querySelector('.dropdown-menu.show')) return;
+    if (sessionSidebarHovering) return;
 
     // 셋 다 같은 로컬 서버 인증을 공유하므로, 하나라도 로그인이 필요하면 프롬프트 하나만 띄운다.
     if (chatAuthState === 'signin' || termAuthState === 'signin' || browserAuthState === 'signin') {
@@ -1484,37 +1623,42 @@ async function termOpenTappedPath(tappedPath: string, token: string) {
         const relPath = normFull.slice(termNormAbsPath(root.path).length);
         const downBase = new URL(root.url, CPath.WebRootUrl()).href.replace(/\/+$/, '');
         const url = downBase + relPath.split('/').map(encodeURIComponent).join('/');
-        termPromptOpenMode(fullPath, url);
+        promptSourceAction(fullPath, '', url);
     } catch (e) {
         console.error('termOpenTappedPath error:', e);
         CAlert.E('경로를 여는 중 오류가 발생했습니다.');
     }
 }
 
-// File.ts의 saveEditedFile과 동일한 멀티바이트 안전 base64 인코딩.
-const termTextToBase64 = (text: string) => btoa(unescape(encodeURIComponent(text)));
-
-// File.ts의 saveEditedFile과 동일하게 File/Upload로 저장한다. 다만 File.ts는 현재 탐색 중인
-// 폴더(gRoot+gPath)를 쓰지만, 여기는 탐색 상태가 없으므로 fullPath에서 폴더/파일명을 직접 뽑는다.
-function termSaveEditedFile(fullPath: string, base64: string) {
-    const idx = fullPath.lastIndexOf('/');
-    const folder = fullPath.slice(0, idx + 1);
-    const fileName = fullPath.slice(idx + 1);
-    CFecth.Exe(CPath.WebRootUrl() + "File/Upload", { path: folder, name: [fileName], data: [base64] })
-        .then(() => CAlert.Info('저장 완료'))
-        .catch((e: any) => CAlert.E('저장 실패: ' + e.message));
+function fileExtOf(path: string): string {
+    const m = /\.([a-zA-Z0-9]+)$/.exec(path);
+    return m ? m[1].toLowerCase() : '';
 }
 
-// Source(읽기전용 Monaco iframe, 기존 editorOpenFile) / Edit(수정 가능한 CFileViewer 모달, File.ts의
-// openCode와 동일한 방식) 중 어떻게 열지 선택하는 확인창.
-function termPromptOpenMode(fullPath: string, url: string) {
+// Execute는 html/md 파일에만 해당한다: html은 새 창에서 실제 렌더링, md는 마크다운 뷰어로 렌더링.
+function executeOpenedSource(fullPath: string, url: string) {
+    const ext = fileExtOf(fullPath);
+    if (ext === 'html' || ext === 'htm') { window.open(url, "_blank"); return; }
+    if (ext === 'md') { new CMDViewer(url); return; }
+}
+
+// File 탭(file-opened)과 Terminal 탭(terminal-path-tapped)이 공유하는 단일 진입점.
+// Edit: Editor.html(Monaco, 자체 저장 지원)로 열기 / Execute: html·md만 실제 실행 / Cancel: 무시.
+function promptSourceAction(fullPath: string, baseUrl: string, url: string) {
+    const ext = fileExtOf(fullPath);
+    const canExecute = ext === 'html' || ext === 'htm' || ext === 'md';
+    const actions = [() => editorOpenFile(fullPath, baseUrl, url)];
+    const labels = ["Edit"];
+    if (canExecute) {
+        actions.push(() => executeOpenedSource(fullPath, url));
+        labels.push("Execute");
+    }
+    actions.push(() => {});
+    labels.push("Cancel");
+
     const confirm = new CConfirm();
     confirm.SetBody(`"${aiEscapeHtml(fullPath)}"`);
-    confirm.SetConfirm(CConfirm.eConfirm.List, [
-        () => editorOpenFile(fullPath, '', url),
-        () => new CFileViewer([url], async (_filePath, bufStr) => termSaveEditedFile(fullPath, termTextToBase64(bufStr))).Open(),
-        () => {},
-    ], ["Source", "Edit", "Cancel"]);
+    confirm.SetConfirm(CConfirm.eConfirm.List, actions, labels);
     confirm.Open();
 }
 
@@ -1996,7 +2140,10 @@ function termStartNew(mode: 'cmd' | 'claude' | 'codex' | 'antigravity' | 'openco
 }
 
 const termTab = CDOM.ID('term-tab') as HTMLButtonElement;
-termTab.addEventListener('click', () => termStartNew('cmd', ctrlSelectedRootPath || undefined));
+termTab.addEventListener('click', () => {
+    if (!ctrlRequireAuthed()) return;
+    termStartNew('cmd', ctrlSelectedRootPath || undefined);
+});
 termTab.addEventListener('shown.bs.tab', () => { termRenderList(); updateTermFrameVisibility(); });
 termTab.addEventListener('hidden.bs.tab', () => updateTermFrameVisibility());
 
@@ -2557,6 +2704,7 @@ CDOM.ID('sched-new-btn').addEventListener('click', () => schedOpenModal());
 // 옵션 패널이 항상 열려있지 않아도 최신 목록을 유지하도록 첫 로딩 시 + 5초 주기로 갱신한다.
 schedRefresh();
 setInterval(schedRefresh, 5000);
+
 
 
 

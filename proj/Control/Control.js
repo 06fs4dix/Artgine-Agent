@@ -18,7 +18,7 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mrjd2tm2_2";
+gPF.mVersion = "mrkn9f8b_2";
 import { CAtelier } from "../../Artgine/artgine/app/CAtelier.js";
 var gAtl = new CAtelier();
 gAtl.mPF = gPF;
@@ -26,7 +26,7 @@ await gAtl.Init([], "");
 import { CDOM } from "../../Artgine/artgine/basic/CDOM.js";
 import { CPath } from "../../Artgine/artgine/basic/CPath.js";
 import { CModal, CConfirm } from "../../Artgine/artgine/basic/CModal.js";
-import { CFileViewer } from "../../Artgine/artgine/util/CModalUtil.js";
+import { CMDViewer } from "../../Artgine/artgine/util/CModalUtil.js";
 import { CAlert } from "../../Artgine/artgine/basic/CAlert.js";
 import { CFecth } from "../../Artgine/artgine/network/CFecth.js";
 import { CHash } from "../../Artgine/artgine/basic/CHash.js";
@@ -178,6 +178,7 @@ loadAiProviderStatus();
 setInterval(() => loadAiProviderStatus(), 5 * 60 * 1000);
 document.getElementById('aiProviderRefreshBtn')?.addEventListener('click', () => loadAiProviderStatus());
 document.getElementById('aiAddOllamaBtn')?.addEventListener('click', () => showAddOllamaModal());
+document.getElementById('aiOpencodeStatusBtn')?.addEventListener('click', () => showOpencodeStatusModal());
 function showAddOllamaModal() {
     const uid = `ollama_${Date.now()}`;
     const modal = new CModal();
@@ -260,6 +261,78 @@ function showAddOllamaModal() {
         keyInput?.addEventListener('keydown', onEnter);
     }, MODAL_DOM_DELAY);
 }
+function showOpencodeStatusModal() {
+    const modal = new CModal();
+    modal.SetHeader('OpenCode Provider Status');
+    modal.SetBody(`
+        <div class="d-flex justify-content-end mb-2">
+            <button id="opencodeStatusRefreshBtn" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+                <i class="bi bi-arrow-clockwise"></i><span>Refresh</span>
+            </button>
+        </div>
+        <div id="opencodeStatusBody" class="small"><i class="bi bi-hourglass-split"></i> Loading...</div>
+    `);
+    modal.SetTitle(CModal.eTitle.TextClose);
+    modal.SetSize(680, 420);
+    modal.Open(CModal.ePos.Center);
+    const load = async () => {
+        const body = document.getElementById('opencodeStatusBody');
+        const refreshBtn = document.getElementById('opencodeStatusRefreshBtn');
+        if (!body)
+            return;
+        if (refreshBtn)
+            refreshBtn.disabled = true;
+        body.innerHTML = '<i class="bi bi-hourglass-split"></i> Loading...';
+        try {
+            const r = await authedFetch(CPath.WebRootUrl() + 'AIInfo/opencode-provider-status');
+            if (r.status === 401) {
+                body.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle"></i> Login required</span>';
+                return;
+            }
+            const j = await r.json();
+            const providers = j.providers ?? [];
+            if (!providers.length) {
+                body.innerHTML = '<span class="text-secondary">No registered OpenCode providers yet. Use "Add OpenCode Model" first.</span>';
+                return;
+            }
+            body.innerHTML = `
+                <table class="table table-sm table-borderless align-middle mb-0">
+                    <thead>
+                        <tr class="text-secondary" style="font-size:0.8em;">
+                            <th>Connection</th><th>Provider</th><th>Host</th><th>Models</th><th>Running</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${providers.map(p => `
+                            <tr>
+                                <td>${p.connected
+                ? '<span class="badge bg-success"><i class="bi bi-check-circle-fill"></i> Connected</span>'
+                : `<span class="badge bg-danger" title="${aiEscapeHtml(p.error ?? '')}"><i class="bi bi-x-circle-fill"></i> Disconnected</span>`}</td>
+                                <td>${aiEscapeHtml(p.label)}<div class="text-secondary" style="font-size:0.75em;">${aiEscapeHtml(p.backend)}</div></td>
+                                <td class="text-secondary">${aiEscapeHtml(p.host)}</td>
+                                <td>${p.modelCount}</td>
+                                <td>${p.running.length
+                ? p.running.map(m => `${aiEscapeHtml(m.name)}${m.vramBytes ? ` <span class="text-secondary">(${(m.vramBytes / 1e9).toFixed(1)}GB VRAM)</span>` : ''}`).join('<br>')
+                : '<span class="text-secondary">-</span>'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+        catch (e) {
+            body.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${aiEscapeHtml(e?.message ?? String(e))}</span>`;
+        }
+        finally {
+            if (refreshBtn)
+                refreshBtn.disabled = false;
+        }
+    };
+    setTimeout(() => {
+        document.getElementById('opencodeStatusRefreshBtn')?.addEventListener('click', load);
+        load();
+    }, MODAL_DOM_DELAY);
+}
 const MODAL_DOM_DELAY = 100;
 function postFrameVisible(f, visible) {
     if (f?.contentWindow)
@@ -267,9 +340,8 @@ function postFrameVisible(f, visible) {
 }
 function rdpRemoteWebRootUrl(input) {
     const u = new URL(input);
-    const marker = "/proj/Home/Home.html";
-    const homeIdx = u.pathname.indexOf(marker);
-    const basePath = homeIdx >= 0 ? u.pathname.substring(0, homeIdx) : u.pathname;
+    const m = u.pathname.match(/^(.*)\/proj\/[^\/]+\/[^\/]+\.html$/);
+    const basePath = m ? m[1] : u.pathname;
     return (u.origin + (basePath || "/")).replace(/\/+$/, '') + '/';
 }
 function aiEscapeHtml(s) {
@@ -992,7 +1064,7 @@ CIframeMsg.Recv({
         memoSendRemoteInfo();
     },
     'file-opened': (data) => {
-        editorOpenFile(String(data.path ?? ''), String(data.baseUrl ?? ''), String(data.url ?? ''));
+        promptSourceAction(String(data.path ?? ''), String(data.baseUrl ?? ''), String(data.url ?? ''));
     },
     'open-chat': (data) => chatStartNew(data.cwd || undefined),
     'open-term': (data) => termStartNew('cmd', data.cwd || undefined),
@@ -1003,6 +1075,16 @@ CIframeMsg.Recv({
             CIframeMsg.Send(memoIframe.contentWindow, 'set-folder', { folder: data.folder ?? '' }); }, 200);
     },
     'terminal-path-tapped': (data) => termOpenTappedPath(String(data.path ?? ''), String(data.token ?? '')),
+    'terminal-handoff': (data) => {
+        const newToken = String(data.newToken ?? '');
+        if (!newToken)
+            return;
+        termActivatePane();
+        showTermFrame(`term-new:${Date.now()}`, `${CPath.WebRootUrl()}cmd/terminal-proxy?token=${newToken}`);
+        termRenderList();
+        setTimeout(termRenderList, 1500);
+        setTimeout(termRenderList, 4000);
+    },
 });
 let dlInited = false;
 CDOM.ID("download-tab").addEventListener("shown.bs.tab", () => {
@@ -1068,6 +1150,9 @@ function rdpPromptRemoteAuth(webRootUrl, onSuccess) {
             if (j.ok) {
                 setAuthToken(webRootUrl, j.token);
                 CAlert.Info("Permission granted");
+                if (pw === "artgine") {
+                    CAlert.Warning("You are using the default password. Please change it for security.");
+                }
                 onSuccess?.();
             }
             else {
@@ -1092,6 +1177,18 @@ function rdpPromptRemoteAuth(webRootUrl, onSuccess) {
         });
     }, MODAL_DOM_DELAY);
 }
+function ctrlRequireAuthed() {
+    if (getAuthToken(CPath.WebRootUrl()))
+        return true;
+    CAlert.Warning("Authentication required. Please sign in first.");
+    return false;
+}
+['rdp-panel-tab', 'chat-panel-tab', 'browser-panel-tab', 'editor-panel-tab', 'term-tab', 'memo-tab', 'download-tab'].forEach((tabId) => {
+    CDOM.ID(tabId).addEventListener('show.bs.tab', (e) => {
+        if (!ctrlRequireAuthed())
+            e.preventDefault();
+    });
+});
 function renderSignInPrompt(container, onSuccess) {
     container.innerHTML = `
         <div class="text-center text-secondary small p-3 d-flex flex-column align-items-center gap-2">
@@ -1135,6 +1232,9 @@ memoTab.addEventListener("click", () => {
 if (memoTab.classList.contains("active"))
     memoTryInit();
 const sessionSidebarList = CDOM.ID("session-sidebar-list");
+let sessionSidebarHovering = false;
+sessionSidebarList.addEventListener('mouseenter', () => { sessionSidebarHovering = true; });
+sessionSidebarList.addEventListener('mouseleave', () => { sessionSidebarHovering = false; renderSessionSidebar(); });
 let _activeNotifCallback = null;
 function _showModalStackMsg(label, content, onClick) {
     const m = new CModalStackMsg(CModal.ePos.TopRight);
@@ -1208,6 +1308,8 @@ let lastChatSessions = null;
 let lastTermSessions = null;
 function renderSessionSidebar() {
     if (sessionSidebarList.querySelector('.dropdown-menu.show'))
+        return;
+    if (sessionSidebarHovering)
         return;
     if (chatAuthState === 'signin' || termAuthState === 'signin' || browserAuthState === 'signin') {
         renderSignInPrompt(sessionSidebarList, () => { chatRenderList(); termRenderList(); browserRefreshList(); });
@@ -1349,30 +1451,42 @@ async function termOpenTappedPath(tappedPath, token) {
         const relPath = normFull.slice(termNormAbsPath(root.path).length);
         const downBase = new URL(root.url, CPath.WebRootUrl()).href.replace(/\/+$/, '');
         const url = downBase + relPath.split('/').map(encodeURIComponent).join('/');
-        termPromptOpenMode(fullPath, url);
+        promptSourceAction(fullPath, '', url);
     }
     catch (e) {
         console.error('termOpenTappedPath error:', e);
         CAlert.E('경로를 여는 중 오류가 발생했습니다.');
     }
 }
-const termTextToBase64 = (text) => btoa(unescape(encodeURIComponent(text)));
-function termSaveEditedFile(fullPath, base64) {
-    const idx = fullPath.lastIndexOf('/');
-    const folder = fullPath.slice(0, idx + 1);
-    const fileName = fullPath.slice(idx + 1);
-    CFecth.Exe(CPath.WebRootUrl() + "File/Upload", { path: folder, name: [fileName], data: [base64] })
-        .then(() => CAlert.Info('저장 완료'))
-        .catch((e) => CAlert.E('저장 실패: ' + e.message));
+function fileExtOf(path) {
+    const m = /\.([a-zA-Z0-9]+)$/.exec(path);
+    return m ? m[1].toLowerCase() : '';
 }
-function termPromptOpenMode(fullPath, url) {
+function executeOpenedSource(fullPath, url) {
+    const ext = fileExtOf(fullPath);
+    if (ext === 'html' || ext === 'htm') {
+        window.open(url, "_blank");
+        return;
+    }
+    if (ext === 'md') {
+        new CMDViewer(url);
+        return;
+    }
+}
+function promptSourceAction(fullPath, baseUrl, url) {
+    const ext = fileExtOf(fullPath);
+    const canExecute = ext === 'html' || ext === 'htm' || ext === 'md';
+    const actions = [() => editorOpenFile(fullPath, baseUrl, url)];
+    const labels = ["Edit"];
+    if (canExecute) {
+        actions.push(() => executeOpenedSource(fullPath, url));
+        labels.push("Execute");
+    }
+    actions.push(() => { });
+    labels.push("Cancel");
     const confirm = new CConfirm();
     confirm.SetBody(`"${aiEscapeHtml(fullPath)}"`);
-    confirm.SetConfirm(CConfirm.eConfirm.List, [
-        () => editorOpenFile(fullPath, '', url),
-        () => new CFileViewer([url], async (_filePath, bufStr) => termSaveEditedFile(fullPath, termTextToBase64(bufStr))).Open(),
-        () => { },
-    ], ["Source", "Edit", "Cancel"]);
+    confirm.SetConfirm(CConfirm.eConfirm.List, actions, labels);
     confirm.Open();
 }
 function buildEditorItem(s) {
@@ -1866,7 +1980,11 @@ function termStartNew(mode = 'cmd', initialWorkingDir) {
     }, MODAL_DOM_DELAY);
 }
 const termTab = CDOM.ID('term-tab');
-termTab.addEventListener('click', () => termStartNew('cmd', ctrlSelectedRootPath || undefined));
+termTab.addEventListener('click', () => {
+    if (!ctrlRequireAuthed())
+        return;
+    termStartNew('cmd', ctrlSelectedRootPath || undefined);
+});
 termTab.addEventListener('shown.bs.tab', () => { termRenderList(); updateTermFrameVisibility(); });
 termTab.addEventListener('hidden.bs.tab', () => updateTermFrameVisibility());
 termRenderList();
