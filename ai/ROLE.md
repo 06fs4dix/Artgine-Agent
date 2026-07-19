@@ -31,6 +31,7 @@ node ai/tool/c_cpp_check.js [web|window|linux|mac] 파일A.cpp 파일B.cpp
 - node 임의 실행. `ai/tool/tsc_check.js`, `ai/tool/browser.js`, `ai/tool/c_cpp_check.js`는 제외
 - python / python3 실행
 - 라이브 페이지 디버깅 목적의 curl 직접 호출 (대신 `ai/tool/browser.js` 사용)
+- 서버 재시작 명령(`POST /File/Restart`, Control 프로젝트의 "Restart Server" 버튼) — 실행 시 현재 서버 프로세스가 즉시 종료되므로 **사용자 승인 없이 절대 실행 금지**
 
 ## 접속 정보 (Connection Information)
 포트/경로는 `settings.json`의 `url` 필드 기준. 우선순위: 워킹 폴더 `settings.json` → `desktop/settings.json`.
@@ -45,7 +46,7 @@ node ai/tool/c_cpp_check.js [web|window|linux|mac] 파일A.cpp 파일B.cpp
 **`ai/ProjectSetupGuide.md`** 먼저 읽기 필수.
 
 ## 원격 작업 (Remote Work & Command Execution)
-**`ai/RemoteCMDGuide.md`** 먼저 읽기 필수.
+**`ai/RemoteCMDGuide.md`** 먼저 읽기 필수. 서버 재시작도 이 문서 참고.
 
 ## 메모 가이드 (Memo Guide)
 메모 저장/검색 관련 작업 전 **`ai/MemoGuide.md`** 먼저 읽기 필수.
