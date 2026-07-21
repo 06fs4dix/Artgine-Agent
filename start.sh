@@ -47,3 +47,4 @@ fi
 
 echo "Start... Artgine/desktop/Start.js"
 node Artgine/desktop/Start.js
+read -p "Press Enter to continue..."

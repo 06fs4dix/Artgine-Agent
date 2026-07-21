@@ -1604,7 +1604,7 @@
             <div class="mb-1">Unzip, then run:</div>
             <ul class="mb-2 ps-3">
               <li>Windows — <code class="cmd">Artgine.exe</code></li>
-              <li>Linux — <code class="cmd">./Artgine</code></li>
+              <li>Linux — <code class="cmd">./Artgine --no-sandbox</code></li>
               <li>macOS — <code class="cmd">Artgine.app</code></li>
             </ul>
             <div class="mb-0">If the OS blocks it, use Permission / security below.</div>
@@ -1638,6 +1638,7 @@
                       <div class="text-muted small mb-0" data-CLan="gsPermLinux">
                         <ul class="mb-0 ps-3">
                           <li><strong>Execute bit:</strong> After unzip, grant run permission on the binary, e.g. <code class="cmd">chmod +x ./Artgine</code> (or the actual executable name inside the zip), then <code class="cmd">./Artgine</code>.</li>
+                          <li><strong>Electron sandbox:</strong> On most distros the Electron app fails to start (or exits silently) unless the sandbox is disabled — run it as <code class="cmd">./Artgine --no-sandbox</code>.</li>
                           <li><strong>Permission denied:</strong> Confirm the file is not on a <code>noexec</code> mount; move it to your home folder if needed.</li>
                           <li><strong>Shared libraries / sandbox:</strong> If the app fails to start, install missing deps from your distro, or run from a user-writable path (avoid read-only system dirs).</li>
                           <li>Firewall may block the listen port — open it or pick another port if your build supports it.</li>
@@ -2670,13 +2671,13 @@ CLan.Set({
     gsDefaultPort: '기본 포트 8050',
     gsBadge2: '방법 2',
     gsMethod2Title: '실행파일 다운로드',
-    gsMethod2Note: '<div class="mb-1">압축 해제 후 실행:</div><ul class="mb-2 ps-3"><li>Windows — <code class="cmd">Artgine.exe</code></li><li>Linux — <code class="cmd">./Artgine</code></li><li>macOS — <code class="cmd">Artgine.app</code></li></ul><div class="mb-0">OS가 막으면 아래 권한 / 보안을 확인하세요.</div>',
+    gsMethod2Note: '<div class="mb-1">압축 해제 후 실행:</div><ul class="mb-2 ps-3"><li>Windows — <code class="cmd">Artgine.exe</code></li><li>Linux — <code class="cmd">./Artgine --no-sandbox</code></li><li>macOS — <code class="cmd">Artgine.app</code></li></ul><div class="mb-0">OS가 막으면 아래 권한 / 보안을 확인하세요.</div>',
     gsAfterTitle: '일렉트론 앱 시작 후',
     gsAfterBody: '브라우저에서 아래 주소로 접속하세요:<div class="font-monospace my-2" style="background:#0d1117;padding:.65rem 1rem;border-radius:8px;color:#7ee787;">http://localhost:8050/Artgine/proj/Control/Control.html</div>로그인 기본 비밀번호: <strong>artgine</strong>. 폰·다른 PC에서는 <code class="cmd">localhost</code> 대신 호스트 PC의 LAN IP를 사용하세요.',
     gsPermTitle: '권한 / 보안 차단',
     gsPermSub: '인터넷에서 받은 실행파일은 OS가 막는 경우가 많습니다. 플랫폼별로 처리한 뒤 Artgine을 다시 실행하세요.',
     gsPermWin: '<ul class="mb-0 ps-3"><li><strong>SmartScreen:</strong> “Windows에서 PC를 보호했습니다” → <em>추가 정보</em> → <em>실행</em>.</li><li><strong>차단 해제:</strong> <code>.zip</code> 또는 <code>Artgine.exe</code> 우클릭 → 속성 → <em>차단 해제</em> 체크 → 적용. PowerShell: <code class="cmd">Unblock-File -Path .\\Artgine.exe</code></li><li><strong>백신:</strong> 파일이 사라지거나 격리되면 Windows 보안에서 복원하고 해당 폴더를 허용하세요.</li><li>포트 바인드가 막히면 한 번 <em>관리자 권한으로 실행</em>하거나 Windows 방화벽에서 Artgine을 허용하세요.</li></ul>',
-    gsPermLinux: '<ul class="mb-0 ps-3"><li><strong>실행 권한:</strong> 압축 해제 후 바이너리에 실행 비트를 줍니다. 예: <code class="cmd">chmod +x ./Artgine</code> (zip 안 실제 실행 파일 이름 사용) 후 <code class="cmd">./Artgine</code>.</li><li><strong>Permission denied:</strong> 파티션이 <code>noexec</code>인지 확인하고, 필요하면 홈 폴더로 옮겨 실행하세요.</li><li><strong>공유 라이브러리 / 경로:</strong> 시작 실패 시 배포판에 맞는 의존성을 설치하거나, 읽기 전용 시스템 경로 대신 사용자 쓰기 가능 경로에서 실행하세요.</li><li>방화벽이 listen 포트를 막을 수 있습니다 — 포트를 열거나 지원되면 다른 포트를 사용하세요.</li></ul>',
+    gsPermLinux: '<ul class="mb-0 ps-3"><li><strong>실행 권한:</strong> 압축 해제 후 바이너리에 실행 비트를 줍니다. 예: <code class="cmd">chmod +x ./Artgine</code> (zip 안 실제 실행 파일 이름 사용) 후 <code class="cmd">./Artgine</code>.</li><li><strong>Electron 샌드박스:</strong> 대부분의 배포판에서는 샌드박스를 끄지 않으면 실행이 안 되거나 조용히 종료됩니다 — <code class="cmd">./Artgine --no-sandbox</code>로 실행하세요.</li><li><strong>Permission denied:</strong> 파티션이 <code>noexec</code>인지 확인하고, 필요하면 홈 폴더로 옮겨 실행하세요.</li><li><strong>공유 라이브러리 / 경로:</strong> 시작 실패 시 배포판에 맞는 의존성을 설치하거나, 읽기 전용 시스템 경로 대신 사용자 쓰기 가능 경로에서 실행하세요.</li><li>방화벽이 listen 포트를 막을 수 있습니다 — 포트를 열거나 지원되면 다른 포트를 사용하세요.</li></ul>',
     gsPermMac: '<ul class="mb-0 ps-3"><li><strong>Gatekeeper:</strong> “확인되지 않은 개발자…” → 앱을 우클릭(Control-클릭) → <em>열기</em> → 다시 <em>열기</em>. 또는 시스템 설정 → 개인정보 보호 및 보안 → <em>확인 없이 열기</em>.</li><li><strong>격리 속성:</strong> 터미널에서 <code class="cmd">xattr -dr com.apple.quarantine /path/to/Artgine.app</code> (또는 압축 푼 폴더) 후 다시 실행.</li><li><strong>실행 비트</strong>(바이너리 직접 실행 시): <code class="cmd">chmod +x ./Artgine</code> 후 <code class="cmd">./Artgine</code>.</li><li>네트워크/로컬 서버 접근이 막히면 개인정보 보호 및 보안 / 방화벽 프롬프트에서 허용하세요.</li></ul>',
     gsPassword: '기본 비밀번호는 <strong>artgine</strong>입니다. 외부 네트워크에 노출하기 전에 반드시 변경하세요.',
     gsPasswordBody: '<p class="mb-2">로컬 네트워크 밖으로 URL을 공개하기 전에 Control 로그인 비밀번호부터 바꾸세요. 기본값을 아는 사람은 파일·터미널·RDP에 접근할 수 있습니다.</p><ul class="mb-0 ps-3"><li><strong>일렉트론 데스크톱 앱:</strong> Server 패널을 열어 비밀번호 입력창을 수정하세요 — 포커스를 벗어나면 자동으로 해시되어 저장됩니다.</li><li><strong>settings.json:</strong> 웹 서버를 직접 실행 중이라면 서버를 실행한 워킹 디렉토리에 있는 <code>settings.json</code>의 <code>password</code> 필드를 직접 수정하세요. 평문으로 짧게 넣어도 다음 로그인 확인 시 자동으로 해시됩니다.</li></ul>',
