@@ -22,7 +22,7 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mruojwiw_2";
+gPF.mVersion = "mrw2cc4e_2";
 
 import {CAtelier} from "../../Artgine/artgine/app/CAtelier.js";
 
@@ -1168,6 +1168,14 @@ if (ctrlInitRootPath) (window as any).bootstrap.Tab.getOrCreateInstance(CDOM.ID(
 else helpActivatePane();
 CDOM.ID('help-btn').addEventListener('click', () => helpActivatePane());
 
+// F1 핸들러와 동일한 로직(우측 사이드바 열기 + File 탭 활성화)을 F2 검색 모달의 폴더 클릭에서도 재사용한다.
+function ctrlShowFileTab() {
+    if (appSidebarRight && !appSidebarRight.classList.contains('sidebar-docked')) {
+        (window as any).bootstrap.Offcanvas.getOrCreateInstance(appSidebarRight).show();
+    }
+    (window as any).bootstrap.Tab.getOrCreateInstance(CDOM.ID('right-file-tab')).show();
+}
+
 // ---- F2 파일 검색 모달 ----
 // File.ts의 FileSearch()와 동일한 방식(BFS 재귀 스캔 + 캐시 + hidden/node_modules 제외 + 200개 캡)이지만,
 // File 탭 iframe이 아니라 Control 페이지 자체에서 실행한다. File 탭엔 "현재 보던 폴더"(gPath) 상태가 있어 거기서부터
@@ -1219,11 +1227,23 @@ async function ctrlFileSearch() {
         item.innerHTML =
             `<i class="bi ${icon} me-1"></i><strong>${fl.name}</strong>` +
             `<span class="text-muted ms-2" style="font-size:11px;">${dirPath}</span>`;
-        // 폴더는 Control 페이지에 "현재 보던 폴더" 화면이 없어 이동할 대상이 없으므로 표시만 하고 클릭은 비활성.
+        // 사이드바 File 목록(ctrlSideFileRenderList)과 동일하게, 터미널 탭(iframe)에 드롭하면 경로가 입력창에 삽입된다.
+        item.draggable = true;
+        item.addEventListener('dragstart', (e) => {
+            e.dataTransfer?.setData('text/plain', gRoot + dirPath + fl.name);
+            if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy';
+        });
         if (fl.file) {
             item.addEventListener('click', () => {
                 modal.Hide();
                 editorOpenFile(gRoot + dirPath + fl.name, currentRemoteBaseUrl, gDown + ctrlEncodeUrlPath(dirPath + fl.name));
+            });
+        } else {
+            // 폴더 클릭 시 우측 File 탭을 열고, 그 폴더 자체가 아니라 상위 폴더(목록 안에 이 폴더가 보이는 위치)로 이동시킨다.
+            item.addEventListener('click', () => {
+                modal.Hide();
+                ctrlShowFileTab();
+                ctrlSideFileGoTo(dirPath);
             });
         }
         return item;
@@ -1494,8 +1514,11 @@ function runControlHotkey(key: string): boolean {
             const fileTab = CDOM.ID('right-file-tab');
             // File 탭이 이미 활성(aria-selected 또는 active 클래스)이면 Info로 되돌린다.
             const onFile = fileTab?.classList.contains('active') || fileTab?.getAttribute('aria-selected') === 'true';
-            const targetId = onFile ? 'right-info-tab' : 'right-file-tab';
-            (window as any).bootstrap.Tab.getOrCreateInstance(CDOM.ID(targetId)).show();
+            if (onFile) {
+                (window as any).bootstrap.Tab.getOrCreateInstance(CDOM.ID('right-info-tab')).show();
+            } else {
+                ctrlShowFileTab();
+            }
             return true;
         }
         case 'F2':
@@ -2486,20 +2509,12 @@ function chatItemSpec(s: { sessionId: string; title: string; updatedAt?: number;
         deleteLabel: '🗑️ Delete',
         onClick: () => chatLoadSession(s.sessionId),
         onShare: () => chatShowShareLink(s.sessionId, s.title),
-        onDelete: () => {
-            const delConfirm = new CConfirm();
-            delConfirm.SetBody(LF('ctrl.msg.deleteNamed', 'Delete "{0}"?', aiEscapeHtml(s.title)));
-            delConfirm.SetConfirm(CConfirm.eConfirm.YesNo, [
-                async () => {
-                    await authedFetch(`${CPath.WebRootUrl()}AIChat/session?id=${s.sessionId}`, { method: 'DELETE' });
-                    const f = chatIframePool.get(key);
-                    if (f) { f.remove(); chatIframePool.delete(key); }
-                    if (activeChatFrameKey === key) { activeChatFrameKey = null; updateChatFramePlaceholder(); }
-                    chatRenderList();
-                },
-                () => {},
-            ], [L('ctrl.delete', 'Delete'), L('ctrl.cancel', 'Cancel')]);
-            delConfirm.Open();
+        onDelete: async () => {
+            await authedFetch(`${CPath.WebRootUrl()}AIChat/session?id=${s.sessionId}`, { method: 'DELETE' });
+            const f = chatIframePool.get(key);
+            if (f) { f.remove(); chatIframePool.delete(key); }
+            if (activeChatFrameKey === key) { activeChatFrameKey = null; updateChatFramePlaceholder(); }
+            chatRenderList();
         },
         popup: { url: () => `${CPath.WebRootArtgineUrl()}artgine/server/html/Chat.html?session=${encodeURIComponent(s.sessionId)}`, title: s.title, winName: `chat_${s.sessionId}` },
     };
@@ -2607,16 +2622,6 @@ async function termKillSession(token: string) {
     } catch (e) { console.error('termKillSession error:', e); }
 }
 
-function termConfirmKillSession(token: string, label: string) {
-    const confirm = new CConfirm();
-    confirm.SetBody(LF('ctrl.msg.deleteNamed', 'Delete "{0}"?', aiEscapeHtml(label)));
-    confirm.SetConfirm(CConfirm.eConfirm.YesNo, [
-        () => { termKillSession(token); },
-        () => {},
-    ], [L('ctrl.delete', 'Delete'), L('ctrl.cancel', 'Cancel')]);
-    confirm.Open();
-}
-
 function termShowShareLink(token: string) {
     showShareLinkModal(
         L('ctrl.share.termTitle', 'Terminal Share Link'),
@@ -2662,7 +2667,7 @@ function termItemSpec(s: { token: string; mode: string; key?: string; lastMsg: s
         deleteLabel: '🗑️ Delete',
         onClick: () => termConnectSession(s.token),
         onShare: () => termShowShareLink(s.token),
-        onDelete: () => termConfirmKillSession(s.token, s.key || s.mode || 'Terminal'),
+        onDelete: () => termKillSession(s.token),
         popup: { url: () => `${CPath.WebRootUrl()}cmd/terminal-proxy?token=${s.token}`, title: s.key || s.mode || 'Terminal', winName: `term_${s.token.slice(0, 8)}` },
     };
 }
@@ -3735,6 +3740,7 @@ if (CDOM.ID("download-panel").classList.contains("active")) {
 // ============================================================
 // ↑↑↑ 다운로드(Download) 관련 소스 끝 ↑↑↑
 // ============================================================
+
 
 
 

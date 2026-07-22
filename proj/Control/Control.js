@@ -18,7 +18,7 @@ gPF.mWASM = false;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mruojwiw_2";
+gPF.mVersion = "mrw2cc4e_2";
 import { CAtelier } from "../../Artgine/artgine/app/CAtelier.js";
 var gAtl = new CAtelier();
 gAtl.mPF = gPF;
@@ -1052,6 +1052,12 @@ if (ctrlInitRootPath)
 else
     helpActivatePane();
 CDOM.ID('help-btn').addEventListener('click', () => helpActivatePane());
+function ctrlShowFileTab() {
+    if (appSidebarRight && !appSidebarRight.classList.contains('sidebar-docked')) {
+        window.bootstrap.Offcanvas.getOrCreateInstance(appSidebarRight).show();
+    }
+    window.bootstrap.Tab.getOrCreateInstance(CDOM.ID('right-file-tab')).show();
+}
 const CTRL_SEARCH_EXCLUDE_DIRS = ['node_modules'];
 const ctrlIsSearchExcluded = (name) => name.startsWith('.') || CTRL_SEARCH_EXCLUDE_DIRS.includes(name);
 const ctrlEncodeUrlPath = (p) => p.split('/').map(encodeURIComponent).join('/');
@@ -1091,10 +1097,23 @@ async function ctrlFileSearch() {
         item.innerHTML =
             `<i class="bi ${icon} me-1"></i><strong>${fl.name}</strong>` +
                 `<span class="text-muted ms-2" style="font-size:11px;">${dirPath}</span>`;
+        item.draggable = true;
+        item.addEventListener('dragstart', (e) => {
+            e.dataTransfer?.setData('text/plain', gRoot + dirPath + fl.name);
+            if (e.dataTransfer)
+                e.dataTransfer.effectAllowed = 'copy';
+        });
         if (fl.file) {
             item.addEventListener('click', () => {
                 modal.Hide();
                 editorOpenFile(gRoot + dirPath + fl.name, currentRemoteBaseUrl, gDown + ctrlEncodeUrlPath(dirPath + fl.name));
+            });
+        }
+        else {
+            item.addEventListener('click', () => {
+                modal.Hide();
+                ctrlShowFileTab();
+                ctrlSideFileGoTo(dirPath);
             });
         }
         return item;
@@ -1353,8 +1372,12 @@ function runControlHotkey(key) {
             }
             const fileTab = CDOM.ID('right-file-tab');
             const onFile = fileTab?.classList.contains('active') || fileTab?.getAttribute('aria-selected') === 'true';
-            const targetId = onFile ? 'right-info-tab' : 'right-file-tab';
-            window.bootstrap.Tab.getOrCreateInstance(CDOM.ID(targetId)).show();
+            if (onFile) {
+                window.bootstrap.Tab.getOrCreateInstance(CDOM.ID('right-info-tab')).show();
+            }
+            else {
+                ctrlShowFileTab();
+            }
             return true;
         }
         case 'F2':
@@ -2302,26 +2325,18 @@ function chatItemSpec(s, activeKey) {
         deleteLabel: '🗑️ Delete',
         onClick: () => chatLoadSession(s.sessionId),
         onShare: () => chatShowShareLink(s.sessionId, s.title),
-        onDelete: () => {
-            const delConfirm = new CConfirm();
-            delConfirm.SetBody(LF('ctrl.msg.deleteNamed', 'Delete "{0}"?', aiEscapeHtml(s.title)));
-            delConfirm.SetConfirm(CConfirm.eConfirm.YesNo, [
-                async () => {
-                    await authedFetch(`${CPath.WebRootUrl()}AIChat/session?id=${s.sessionId}`, { method: 'DELETE' });
-                    const f = chatIframePool.get(key);
-                    if (f) {
-                        f.remove();
-                        chatIframePool.delete(key);
-                    }
-                    if (activeChatFrameKey === key) {
-                        activeChatFrameKey = null;
-                        updateChatFramePlaceholder();
-                    }
-                    chatRenderList();
-                },
-                () => { },
-            ], [L('ctrl.delete', 'Delete'), L('ctrl.cancel', 'Cancel')]);
-            delConfirm.Open();
+        onDelete: async () => {
+            await authedFetch(`${CPath.WebRootUrl()}AIChat/session?id=${s.sessionId}`, { method: 'DELETE' });
+            const f = chatIframePool.get(key);
+            if (f) {
+                f.remove();
+                chatIframePool.delete(key);
+            }
+            if (activeChatFrameKey === key) {
+                activeChatFrameKey = null;
+                updateChatFramePlaceholder();
+            }
+            chatRenderList();
         },
         popup: { url: () => `${CPath.WebRootArtgineUrl()}artgine/server/html/Chat.html?session=${encodeURIComponent(s.sessionId)}`, title: s.title, winName: `chat_${s.sessionId}` },
     };
@@ -2433,15 +2448,6 @@ async function termKillSession(token) {
         console.error('termKillSession error:', e);
     }
 }
-function termConfirmKillSession(token, label) {
-    const confirm = new CConfirm();
-    confirm.SetBody(LF('ctrl.msg.deleteNamed', 'Delete "{0}"?', aiEscapeHtml(label)));
-    confirm.SetConfirm(CConfirm.eConfirm.YesNo, [
-        () => { termKillSession(token); },
-        () => { },
-    ], [L('ctrl.delete', 'Delete'), L('ctrl.cancel', 'Cancel')]);
-    confirm.Open();
-}
 function termShowShareLink(token) {
     showShareLinkModal(L('ctrl.share.termTitle', 'Terminal Share Link'), L('ctrl.share.term', 'Anyone with this link can view the terminal in read-only mode.'), `${CPath.WebRootUrl()}cmd/terminal-proxy?token=${token}`);
 }
@@ -2482,7 +2488,7 @@ function termItemSpec(s, activeKey) {
         deleteLabel: '🗑️ Delete',
         onClick: () => termConnectSession(s.token),
         onShare: () => termShowShareLink(s.token),
-        onDelete: () => termConfirmKillSession(s.token, s.key || s.mode || 'Terminal'),
+        onDelete: () => termKillSession(s.token),
         popup: { url: () => `${CPath.WebRootUrl()}cmd/terminal-proxy?token=${s.token}`, title: s.key || s.mode || 'Terminal', winName: `term_${s.token.slice(0, 8)}` },
     };
 }
