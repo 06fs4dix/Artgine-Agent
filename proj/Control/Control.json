@@ -14,6 +14,7 @@
     "mCanvas": ""
   },
   "pluging": [],
+  "dependencies": {},
   "includes": {
     "pakozlib": true,
     "jszip": true,

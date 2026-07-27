@@ -1,17 +1,19 @@
 import { CServerMain } from "../../Artgine/artgine/network/CServerMain.js";
 import { CAIChatRouter } from "../../Artgine/artgine/server/CAIChatRouter.js";
 import { CAIInfoRouter } from "../../Artgine/artgine/server/CAIInfoRouter.js";
-import { CDownloadServer } from "../../Artgine/artgine/server/CDownloadServer.js";
 import { CFileServer } from "../../Artgine/artgine/server/CFileServer.js";
 import { CMemoRouter } from "../../Artgine/artgine/server/CMemoRouter.js";
 import { CORMRouter } from "../../Artgine/artgine/server/CORMRouter.js";
 import { CPlaywrightRouter } from "../../Artgine/artgine/server/CPlaywrightRouter.js";
 import { CRemoteDesktopRouter } from "../../Artgine/artgine/server/CRemoteDesktopRouter.js";
 import { CTerminalRouter } from "../../Artgine/artgine/server/CTerminalRouter.js";
+import { CMessengerRouter } from "../../Artgine/artgine/server/CMessengerRouter.js";
+import { CConsol } from "../../Artgine/artgine/basic/CConsol.js";
 
-new CDownloadServer().SetServerMain(CServerMain.Main());
+CConsol.Log("==================================================================================");
 new CFileServer().SetServerMain(CServerMain.Main());
 new CTerminalRouter().SetServerMain(CServerMain.Main());
+new CMessengerRouter().SetServerMain(CServerMain.Main());
 new CAIInfoRouter().SetServerMain(CServerMain.Main());
 new CAIChatRouter().SetServerMain(CServerMain.Main());
 new CPlaywrightRouter().SetServerMain(CServerMain.Main());
