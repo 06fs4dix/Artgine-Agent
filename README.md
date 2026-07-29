@@ -8,8 +8,6 @@ It is a local web tool that remote-controls your **PC screen, files, terminals, 
 ## Language
 **[한국어](README-ko.md)**
 
-![Agent](https://06fs4dix.github.io/Artgine/help/agent.png)
-
 
 ## Getting Started
 
