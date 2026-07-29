@@ -1,0 +1,15 @@
+{
+  "width": 1024,
+  "height": 768,
+  "fullScreen": false,
+  "program": "client",
+  "url": "http://localhost:7000/Artgine",
+  "projectPath": "proj/Control",
+  "page": "html",
+  "server": "webServer",
+  "github": false,
+  "tsc": true,
+  "password": "artgine",
+  "rootPath": [
+  ]
+}

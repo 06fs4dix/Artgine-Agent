@@ -1862,6 +1862,7 @@
               <li>Windows — <code class="cmd">start.bat</code></li>
               <li>Linux / macOS — <code class="cmd">./start.sh</code></li>
               <li>Web server only — <code class="cmd">npm run start_web [port]</code> (omit the port to use the one from <code class="cmd">settings.json</code>)</li>
+              <li>App (Electron) — <code class="cmd">npm run start_local</code></li>
             </ul>
             <div class="mb-0">Requires Node.js and Git.</div>
           </div>
@@ -1958,7 +1959,7 @@
           <div class="fw-semibold mb-1" style="color:#c9d1d9;"><i class="bi bi-download me-1" style="color:#3fb950;"></i> Install &amp; run</div>
           <ul class="mb-0 ps-3">
             <li><code class="cmd">git clone</code> · <code class="cmd">npm install</code> · <code class="cmd">start.bat</code> / <code class="cmd">start.sh</code></li>
-            <li><code class="cmd">npm start</code> — Electron GUI · <code class="cmd">npm run start_web [port]</code> — web only</li>
+            <li><code class="cmd">npm start</code> — Electron GUI · <code class="cmd">npm run start_web [port]</code> — web only · <code class="cmd">npm run start_local</code> — app (local)</li>
           </ul>
         </div>
         <div class="col-md-6">
@@ -2134,11 +2135,11 @@
       <div class="col-md-4">
         <div class="feature-card p-4 h-100">
           <h5 class="mb-2"><i class="bi bi-person-check" style="color:#d29922;"></i> <span data-CLan="providerAuthTitle">Auth &amp; subscription (you)</span></h5>
-          <p class="text-muted small mb-0" data-CLan="providerAuthDesc">Installation is automatic — <strong>login and subscription are not</strong>. Each provider needs its own account, plan, and sign-in (API key or browser login) done by you in that CLI. Until authenticated, Provider Status may show <em>Not Authenticated</em> and the agent cannot run real tasks. Complete auth in the Terminal session, then refresh Info if needed.</p>
+          <p class="text-muted small mb-0" data-CLan="providerAuthDesc">Installation is automatic — <strong>login and subscription are not</strong>. Link your <strong>personal account</strong> for each provider in advance (API key or browser login). Use the provider’s normal linking flow on its <strong>web site</strong> or inside a <strong>Terminal</strong> session — same as using the CLI alone. Until authenticated, Provider Status may show <em>Not Authenticated</em> and the agent cannot run real tasks. After auth, refresh Info if needed.</p>
         </div>
       </div>
     </div>
-    <p class="text-muted small text-center mt-3 mb-0" style="max-width:720px; margin-left:auto; margin-right:auto;" data-CLan="providerNote">Tip: open Terminal once per provider after install so auto-setup can finish, sign in when prompted, then confirm status under the right sidebar Info tab.</p>
+    <p class="text-muted small text-center mt-3 mb-0" style="max-width:720px; margin-left:auto; margin-right:auto;" data-CLan="providerNote">Tip: open Terminal once per provider so auto-install can finish, complete personal-account linking on the web or in Terminal when prompted, then confirm status under the right sidebar Info tab.</p>
 
     <!-- Keyboard Shortcuts — 비밀번호 안내 아래에 배치 -->
     <h2 class="section-title text-center mt-5" data-CLan="shortcutsTitle">Keyboard Shortcuts</h2>
@@ -3142,13 +3143,13 @@
         </div>
       </article>
 
-      <article class="faq-item" data-faq-q="terminal 터미널 provider 프로바이더 claude codex opencode grok agy cmd f3 slash handoff super f6 f7">
+      <article class="faq-item" data-faq-q="terminal 터미널 provider 프로바이더 claude codex opencode grok agy cmd f3 slash handoff super f6 f7 auth 인증 연동 계정 login 로그인">
         <div class="faq-item-head">
           <i class="bi bi-terminal-fill faq-ico" style="color:#f778ba;"></i>
           <h3 class="faq-item-title" data-CLan="faqTermProviderTitle">How to use Terminal providers</h3>
         </div>
         <div class="faq-item-body" data-CLan="faqTermProviderBody">
-          <p class="mb-0">Open <strong>More → Terminal</strong> / <kbd>F3</kbd>, pick mode (<code class="cmd">cmd</code> / <code class="cmd">claude</code> / <code class="cmd">codex</code> / …). Handoff with <code class="cmd">/codex</code> etc.; SUPER via <kbd>F6</kbd> or <code class="cmd">/super</code>. Provider status is on the right <strong>Info</strong> tab.</p>
+          <p class="mb-0">Open <strong>More → Terminal</strong> / <kbd>F3</kbd>, pick mode (<code class="cmd">cmd</code> / <code class="cmd">claude</code> / <code class="cmd">codex</code> / …). AI providers need your <strong>personal account linked in advance</strong> (login / subscription). Complete that with the same normal linking flow you would use on the provider’s <strong>web UI</strong> or inside a <strong>Terminal</strong> session — Artgine does not replace that step. Handoff with <code class="cmd">/codex</code> etc.; SUPER via <kbd>F6</kbd> or <code class="cmd">/super</code>. Install/auth status: right <strong>Info</strong> tab.</p>
           <div class="faq-see" data-CLan="faqTermProviderSee">Details:
             <a class="d-goto" href="#dTopAccTerm" data-goto-tab="detail" data-goto-scroll="dTopAccTerm" data-goto-collapse="dTopAccTerm">Guide → More → Terminal</a>
             ·
@@ -3254,7 +3255,7 @@ CLan.Set({
     faqMessengerBody: '<p class="mb-0"><strong>More → Messenger</strong> 맨 위 입력칸 = 봇 토큰 또는 상대 이메일 → <strong>Register</strong>. Telegram/Discord: 외부에서 봇 생성 후 그 칸에 토큰. Email: 먼저 <strong>Email</strong> 버튼(SMTP+IMAP Verify&amp;Save) → 그다음 상대 주소 Register. 선택: Terminal Link / 2FA.</p>',
     faqMessengerSee: '토큰 넣는 위치·Email A/B 전체 단계: <a class="d-goto" href="#d-center-messenger" data-goto-tab="detail" data-goto-scroll="d-center-messenger">설명 → 중앙 → Messenger</a> · <a class="d-goto" href="#dTopAccMessenger" data-goto-tab="detail" data-goto-scroll="dTopAccMessenger" data-goto-collapse="dTopAccMessenger">More → Messenger</a>',
     faqTermProviderTitle: '터미널 프로바이더 사용법',
-    faqTermProviderBody: '<p class="mb-0"><strong>More → Terminal</strong> / <kbd>F3</kbd>에서 모드 선택(<code class="cmd">cmd</code>/<code class="cmd">claude</code>/<code class="cmd">codex</code>/…). 핸드오프는 <code class="cmd">/codex</code> 등, SUPER는 <kbd>F6</kbd> 또는 <code class="cmd">/super</code>. 설치·인증 상태는 오른쪽 <strong>Info</strong>.</p>',
+    faqTermProviderBody: '<p class="mb-0"><strong>More → Terminal</strong> / <kbd>F3</kbd>에서 모드 선택(<code class="cmd">cmd</code>/<code class="cmd">claude</code>/<code class="cmd">codex</code>/…). AI 프로바이더는 먼저 <strong>개인 계정을 미리 연동</strong>(로그인·구독)해 두어야 합니다. 연동은 해당 프로바이더 <strong>웹 화면</strong>이나 <strong>Terminal</strong> 환경에서, 평소 CLI를 쓸 때와 같은 일반적인 연동 작업으로 하면 됩니다(Artgine이 대신 로그인하지 않음). 핸드오프는 <code class="cmd">/codex</code> 등, SUPER는 <kbd>F6</kbd> 또는 <code class="cmd">/super</code>. 설치·인증 상태는 오른쪽 <strong>Info</strong>.</p>',
     faqTermProviderSee: '상세: <a class="d-goto" href="#dTopAccTerm" data-goto-tab="detail" data-goto-scroll="dTopAccTerm" data-goto-collapse="dTopAccTerm">설명 → More → Terminal</a> · <a class="d-goto" href="#d-center-term" data-goto-tab="detail" data-goto-scroll="d-center-term">설명 → 중앙 → Terminal</a>',
 
     featuresTitle: '주요 기능',
@@ -3396,7 +3397,7 @@ CLan.Set({
     quickStartSub: '두 가지 방법으로 바로 시작할 수 있습니다',
     gsBadge1: '방법 1',
     gsMethod1Title: '소스 설치 & 실행',
-    gsMethod1Note: '<div class="mb-1">다른 실행 방법:</div><ul class="mb-2 ps-3"><li>Windows — <code class="cmd">start.bat</code></li><li>Linux / macOS — <code class="cmd">./start.sh</code></li><li>웹 서버만 — <code class="cmd">npm run start_web [포트]</code> (포트 생략 시 <code class="cmd">settings.json</code>에 설정된 포트 사용)</li></ul><div class="mb-0">Node.js·Git 필요.</div>',
+    gsMethod1Note: '<div class="mb-1">다른 실행 방법:</div><ul class="mb-2 ps-3"><li>Windows — <code class="cmd">start.bat</code></li><li>Linux / macOS — <code class="cmd">./start.sh</code></li><li>웹 서버만 — <code class="cmd">npm run start_web [포트]</code> (포트 생략 시 <code class="cmd">settings.json</code>에 설정된 포트 사용)</li><li>앱(Electron) 실행 — <code class="cmd">npm run start_local</code></li></ul><div class="mb-0">Node.js·Git 필요.</div>',
     gsPort: '포트',
     gsDefaultPort: '기본 포트 8050',
     gsBadge2: '방법 2',
@@ -3405,7 +3406,7 @@ CLan.Set({
     gsArtgineDocsTitle: '아티젠 일렉트론 앱 · 엔진 문서',
     gsArtgineDocsBtn: '전체 문서 열기',
     gsArtgineDocsLead: '이 <strong>시작하기</strong> 탭은 <strong>Artgine Agent(Control)</strong> — 원격 화면·파일·AI 에이전트용입니다. 링크된 페이지는 <strong>아티젠 Electron IDE + 렌더링 엔진</strong> 공식 가이드(프로젝트 생성, Run, 모드, PWA, 플러그인)입니다. Agent로 원격 AI 작업을, 엔진 문서로 프로젝트 개발·호스팅을 보면 됩니다.',
-    gsArtgineDocsBody: '<div class="col-md-6"><div class="fw-semibold mb-1" style="color:#c9d1d9;"><i class="bi bi-download me-1" style="color:#3fb950;"></i> 설치 · 실행</div><ul class="mb-0 ps-3"><li><code class="cmd">git clone</code> · <code class="cmd">npm install</code> · <code class="cmd">start.bat</code> / <code class="cmd">start.sh</code></li><li><code class="cmd">npm start</code> — Electron GUI · <code class="cmd">npm run start_web [port]</code> — 웹 서버만</li></ul></div><div class="col-md-6"><div class="fw-semibold mb-1" style="color:#c9d1d9;"><i class="bi bi-layers me-1" style="color:#d2a8ff;"></i> Electron 모드 3종</div><ul class="mb-0 ps-3"><li><strong>developer</strong> — 설정 UI, Folder → Run(<kbd>F9</kbd>), 프로젝트 파일 생성</li><li><strong>server</strong> — 호스팅 + URL / IP / QR 연결 화면</li><li><strong>client</strong> — 완성된 프로젝트 창 실행(전시·키오스크)</li></ul></div><div class="col-md-6"><div class="fw-semibold mb-1" style="color:#c9d1d9;"><i class="bi bi-play-circle me-1" style="color:#58a6ff;"></i> 워크플로</div><ul class="mb-0 ps-3"><li>App 탭: <code class="cmd">program</code>, <code class="cmd">server</code>(local / remote / webServer), Include, Plugin, PWA</li><li>Run(F9)가 <code class="cmd">[Name].ts</code> / <code class="cmd">.html</code> / <code class="cmd">.json</code> 생성·갱신 — <strong>EntryPoint</strong> 아래만 직접 수정</li></ul></div><div class="col-md-6"><div class="fw-semibold mb-1" style="color:#c9d1d9;"><i class="bi bi-link-45deg me-1" style="color:#d29922;"></i> 관련 저장소</div><ul class="mb-0 ps-3"><li><a href="https://github.com/06fs4dix/Artgine" target="_blank" rel="noopener">Artgine</a> — 엔진 · Electron 앱</li><li><a href="https://github.com/06fs4dix/Artgine-Project" target="_blank" rel="noopener">Artgine-Project</a> — 샘플 · <a href="https://github.com/06fs4dix/Artgine-Agent" target="_blank" rel="noopener">Artgine-Agent</a> — 이 Control 도구</li></ul></div>',
+    gsArtgineDocsBody: '<div class="col-md-6"><div class="fw-semibold mb-1" style="color:#c9d1d9;"><i class="bi bi-download me-1" style="color:#3fb950;"></i> 설치 · 실행</div><ul class="mb-0 ps-3"><li><code class="cmd">git clone</code> · <code class="cmd">npm install</code> · <code class="cmd">start.bat</code> / <code class="cmd">start.sh</code></li><li><code class="cmd">npm start</code> — Electron GUI · <code class="cmd">npm run start_web [port]</code> — 웹 서버만 · <code class="cmd">npm run start_local</code> — 앱(로컬)</li></ul></div><div class="col-md-6"><div class="fw-semibold mb-1" style="color:#c9d1d9;"><i class="bi bi-layers me-1" style="color:#d2a8ff;"></i> Electron 모드 3종</div><ul class="mb-0 ps-3"><li><strong>developer</strong> — 설정 UI, Folder → Run(<kbd>F9</kbd>), 프로젝트 파일 생성</li><li><strong>server</strong> — 호스팅 + URL / IP / QR 연결 화면</li><li><strong>client</strong> — 완성된 프로젝트 창 실행(전시·키오스크)</li></ul></div><div class="col-md-6"><div class="fw-semibold mb-1" style="color:#c9d1d9;"><i class="bi bi-play-circle me-1" style="color:#58a6ff;"></i> 워크플로</div><ul class="mb-0 ps-3"><li>App 탭: <code class="cmd">program</code>, <code class="cmd">server</code>(local / remote / webServer), Include, Plugin, PWA</li><li>Run(F9)가 <code class="cmd">[Name].ts</code> / <code class="cmd">.html</code> / <code class="cmd">.json</code> 생성·갱신 — <strong>EntryPoint</strong> 아래만 직접 수정</li></ul></div><div class="col-md-6"><div class="fw-semibold mb-1" style="color:#c9d1d9;"><i class="bi bi-link-45deg me-1" style="color:#d29922;"></i> 관련 저장소</div><ul class="mb-0 ps-3"><li><a href="https://github.com/06fs4dix/Artgine" target="_blank" rel="noopener">Artgine</a> — 엔진 · Electron 앱</li><li><a href="https://github.com/06fs4dix/Artgine-Project" target="_blank" rel="noopener">Artgine-Project</a> — 샘플 · <a href="https://github.com/06fs4dix/Artgine-Agent" target="_blank" rel="noopener">Artgine-Agent</a> — 이 Control 도구</li></ul></div>',
     gsArtgineDocsNote: '전체 안내(Install · Electron Modes · Workflow, 영/한): <a href="https://06fs4dix.github.io/Artgine/help/help.html" target="_blank" rel="noopener" style="color:#58a6ff; word-break:break-all;">https://06fs4dix.github.io/Artgine/help/help.html</a>',
     gsAfterTitle: '일렉트론 앱 시작 후',
     gsAfterBody: '브라우저에서 아래 주소로 접속하세요. <code class="cmd">[port]</code>는 서버가 실제로 쓰는 포트로 바꿉니다(일렉트론 Server 패널 또는 <code class="cmd">settings.json</code> 확인):<div class="font-monospace my-2" style="background:#0d1117;padding:.65rem 1rem;border-radius:8px;color:#7ee787;">http://localhost:[port]</div>또는 일렉트론 앱에서 <strong>브라우저</strong> 버튼을 누르면 URL을 치지 않고 Control을 열 수 있습니다. 로그인 기본 비밀번호: <strong>artgine</strong>. 폰·다른 PC에서는 <code class="cmd">localhost</code> 대신 호스트 PC의 LAN IP를 사용하세요.',
@@ -3441,8 +3442,8 @@ CLan.Set({
     providerAutoTitle: 'Terminal 실행 시 자동 설치',
     providerAutoDesc: '각 프로바이더 CLI를 직접 미리 설치할 필요는 <strong>없습니다</strong>. <code class="cmd">claude</code>, <code class="cmd">codex</code>, <code class="cmd">opencode</code>, <code class="cmd">agy</code>, <code class="cmd">grok</code> 등으로 새 Terminal(또는 Chat)을 열면, 없는 도구는 <strong>첫 실행 때 자동으로 설치</strong>됩니다. 세션이 busy / 설치 중이면 끝날 때까지 잠시 기다리세요.',
     providerAuthTitle: '인증·구독은 사용자가',
-    providerAuthDesc: '설치는 자동이지만, <strong>로그인과 구독은 자동이 아닙니다</strong>. 프로바이더마다 계정·요금제·로그인(API 키 또는 브라우저 로그인)을 해당 CLI에서 직접 완료해야 합니다. 인증 전에는 Provider Status에 <em>Not Authenticated</em>가 뜨고 실제 작업을 돌릴 수 없습니다. Terminal 세션에서 인증을 마친 뒤 필요하면 Info를 새로고침하세요.',
-    providerNote: '팁: 설치 후 프로바이더별로 Terminal을 한 번 열어 자동 설치를 끝낸 다음, 안내에 따라 로그인하고 오른쪽 Info 탭에서 상태를 확인하세요.',
+    providerAuthDesc: '설치는 자동이지만, <strong>로그인과 구독은 자동이 아닙니다</strong>. 프로바이더마다 <strong>개인 계정을 미리 연동</strong>해야 합니다(API 키 또는 브라우저 로그인). 연동은 해당 서비스 <strong>웹 화면</strong>이나 <strong>Terminal</strong> 안에서, 평소 CLI와 같은 일반적인 연동 작업으로 하면 됩니다. 인증 전에는 Provider Status에 <em>Not Authenticated</em>가 뜨고 실제 작업을 돌릴 수 없습니다. 인증 후 필요하면 Info를 새로고침하세요.',
+    providerNote: '팁: 프로바이더별로 Terminal을 한 번 열어 자동 설치를 끝낸 뒤, 웹 또는 Terminal에서 개인 계정 연동을 마치고 오른쪽 Info 탭에서 상태를 확인하세요.',
 
     uHintDefault: '아래 목업의 아무 곳이나 눌러보면 그 부분이 무엇을 하는지 여기에 나옵니다.',
     uCenterHint: '어떤 탭이나 세션을 누르느냐에 따라 여기(RDP, File, Help, Terminal, Chat, Browser, Editor, Memo, Download, Log, Messenger, Multiplexer 중 하나)가 바뀝니다.',

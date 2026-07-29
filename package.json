@@ -21,6 +21,7 @@
   "scripts": {
     "start": "node Artgine/desktop/Start.js",
     "start_web": "node Artgine/desktop/WebStart.js",
+    "start_local": "node Artgine/desktop/Start.js local_settings.json",
     "artgine_class": "node script/gen_class_push.js",
     "artgine_packet": "node script/gen_packet.js"
   },
