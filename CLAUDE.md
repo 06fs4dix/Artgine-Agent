@@ -4,7 +4,7 @@
 - D:/git/Artgine-Agent/
 
 ## 아티젠 디렉토리 (Artgine Directory)
-- D:/Artgine_svn/WebContent/
+- D:/git/Artgine-Agent/Artgine/
 
 ## 메모리 저장 규칙 (Memory Storage Rules)
 - 메모리 정보 저장 전 사용자 승인 필수.
@@ -36,9 +36,9 @@ node ai/tool/c_cpp_check.js [web|window|linux|mac] 파일A.cpp 파일B.cpp
 
 ## 접속 정보 (Connection Information)
 포트/경로는 `settings.json`의 `url` 필드 기준. 우선순위: 워킹 폴더 `settings.json` → `desktop/settings.json`.
-- **주소**: `http://124.59.82.199`
-- **포트**: `8050`
-- **기본 경로**: `/Artgine`
+- **주소**: `http://localhost`
+- **포트**: `7000`
+- **기본 경로**: `/Artgine-Agent`
 - **외부 주소** (공인 IP/DNS, 외부 접속 시): _(미설정)_
 - 경로 구조: `<주소>:<포트>/<기본경로>/<폴더경로>/<파일명>.html`
 - 예시: `http://localhost:8050/Artgine/proj/2D/Village/Village.html`

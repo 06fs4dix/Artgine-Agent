@@ -108,11 +108,11 @@
         "costRatioOutput": 3750
       },
       {
-        "value": "opencode-go/grok-4.5",
-        "label": "grok-4.5 (Go)",
+        "value": "opencode-go/grok-4.6",
+        "label": "grok-4.6 (Go)",
         "costInputPer1M": 2,
         "costOutputPer1M": 6,
-        "costCachedReadPer1M": 0.3,
+        "costCachedReadPer1M": 0.5,
         "costCachedWritePer1M": null,
         "costRatioInput": 2000,
         "costRatioOutput": 3000
@@ -188,6 +188,16 @@
         "costRatioOutput": 1500
       },
       {
+        "value": "opencode-go/hy4-preview",
+        "label": "hy4-preview (Go)",
+        "costInputPer1M": 0.834,
+        "costOutputPer1M": 2.501,
+        "costCachedReadPer1M": 0.042,
+        "costCachedWritePer1M": null,
+        "costRatioInput": 834,
+        "costRatioOutput": 1251
+      },
+      {
         "value": "opencode-go/deepseek-v4-pro",
         "label": "deepseek-v4-pro (Go)",
         "costInputPer1M": 0.66,
@@ -206,6 +216,16 @@
         "costCachedWritePer1M": 0.5,
         "costRatioInput": 400,
         "costRatioOutput": 800
+      },
+      {
+        "value": "opencode-go/longcat-2.0",
+        "label": "longcat-2.0 (Go)",
+        "costInputPer1M": 0.3,
+        "costOutputPer1M": 1.2,
+        "costCachedReadPer1M": 0.006,
+        "costCachedWritePer1M": null,
+        "costRatioInput": 300,
+        "costRatioOutput": 600
       },
       {
         "value": "opencode-go/minimax-m2.7",
@@ -258,6 +278,16 @@
         "costRatioOutput": 330
       },
       {
+        "value": "opencode-go/deepseek-v4-flash-vision-exp",
+        "label": "deepseek-v4-flash-vision-exp (Go)",
+        "costInputPer1M": 0.22,
+        "costOutputPer1M": 0.66,
+        "costCachedReadPer1M": 0.007,
+        "costCachedWritePer1M": null,
+        "costRatioInput": 220,
+        "costRatioOutput": 330
+      },
+      {
         "value": "opencode-go/hy3",
         "label": "hy3 (Go)",
         "costInputPer1M": 0.14,
@@ -268,14 +298,24 @@
         "costRatioOutput": 290
       },
       {
-        "value": "opencode/deepseek-v4-flash-free",
-        "label": "deepseek-v4-flash (Free)",
-        "costInputPer1M": 0.14,
-        "costOutputPer1M": 0.28,
-        "costCachedReadPer1M": 0.028,
+        "value": "opencode-go/glm-5.3-flash",
+        "label": "glm-5.3-flash (Go)",
+        "costInputPer1M": 0.15,
+        "costOutputPer1M": 0.5,
+        "costCachedReadPer1M": 0.03,
         "costCachedWritePer1M": null,
-        "costRatioInput": 140,
-        "costRatioOutput": 140
+        "costRatioInput": 150,
+        "costRatioOutput": 250
+      },
+      {
+        "value": "opencode-go/qwen3.8-flash",
+        "label": "qwen3.8-flash (Go)",
+        "costInputPer1M": 0.15,
+        "costOutputPer1M": 0.47,
+        "costCachedReadPer1M": 0.016,
+        "costCachedWritePer1M": 0.2,
+        "costRatioInput": 150,
+        "costRatioOutput": 235
       },
       {
         "value": "opencode-go/mimo-v2.5",
@@ -310,6 +350,16 @@
       {
         "value": "opencode/hy3-free",
         "label": "hy3 (Free)",
+        "costInputPer1M": 0,
+        "costOutputPer1M": 0,
+        "costCachedReadPer1M": 0,
+        "costCachedWritePer1M": null,
+        "costRatioInput": 0,
+        "costRatioOutput": 0
+      },
+      {
+        "value": "opencode/ling-3.0-flash-fin-free",
+        "label": "ling-3.0-flash-fin (Free)",
         "costInputPer1M": 0,
         "costOutputPer1M": 0,
         "costCachedReadPer1M": 0,
