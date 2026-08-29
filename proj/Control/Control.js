@@ -19,7 +19,7 @@ gPF.mIAuto = true;
 gPF.mCanvas = "";
 gPF.mServer = 'webServer';
 gPF.mGitHub = false;
-gPF.mVersion = "mtee58fq_6";
+gPF.mVersion = "mtef94z1_2";
 import { CAtelier } from "../../Artgine/artgine/app/CAtelier.js";
 import { CPlugin } from "../../Artgine/artgine/util/CPlugin.js";
 CPlugin.PushPath('ControlMedia', '../../Artgine/plugin/ControlMedia/');
