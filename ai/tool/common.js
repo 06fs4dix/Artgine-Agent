@@ -1,9 +1,32 @@
-import { readFileSync, existsSync, writeFileSync, renameSync, unlinkSync, openSync, closeSync, writeSync } from 'fs';
-import { join, dirname } from 'path';
+import { readFileSync, existsSync, writeFileSync, renameSync, unlinkSync, openSync, closeSync, writeSync, mkdirSync } from 'fs';
+import { join, dirname, isAbsolute } from 'path';
 import { fileURLToPath } from 'url';
 import { CHash } from '../../artgine/basic/CHash.js';
+import { CPath } from '../../artgine/basic/CPath.js';
 
 const TOOL_DIR = dirname(fileURLToPath(import.meta.url));
+
+// 도구가 만드는 임시 파일(스크린샷·buffer JSON·다운로드)은 서버(CServerMain)가 시작 때 비우고 만드는
+// 워킹 폴더 temp/에 모은다. 아티젠 폴더 기준으로 두면 서버가 만든 temp/와 다른 폴더에 쌓인다.
+export const TEMP_DIR = join(CPath.WorkingPath(), 'temp');
+
+export function tempPath(p) {
+    if (isAbsolute(p)) return p;
+    mkdirSync(TEMP_DIR, { recursive: true });
+    return join(TEMP_DIR, p);
+}
+
+export function shotFormat(v) {
+    return /^jpe?g$/i.test(v ?? '') ? 'jpeg' : 'png';
+}
+
+// 확장자는 실제 인코딩 형식에 맞춘다(이름에 다른 확장자를 줘도 교체) — 형식과 확장자가 어긋나면 이미지 도구가 오인한다.
+export function saveScreenshot(b64, format, name = 'screenshot') {
+    const ext = format === 'jpeg' ? 'jpg' : 'png';
+    const file = tempPath(name.replace(/\.(png|jpe?g)$/i, '') + '.' + ext);
+    writeFileSync(file, Buffer.from(b64, 'base64'));
+    return file;
+}
 
 // 도구 전체가 공유하는 단일 인증 저장소. 서버(base)별로 항목이 나뉘므로 파일은 하나로 두고
 // 원격지가 몇 개로 늘어나든 항목만 늘어난다.
@@ -226,6 +249,14 @@ export async function login(call, base, projectRoot, password = getPassword(proj
 // 모든 도구가 이 하나를 쓴다. 인증은 COOKIE_FILE에 모여 있고 base로 구분되므로,
 // 서버를 몇 개를 오가든 각 서버 세션은 서로를 덮어쓰지 않는다.
 export function createApiClient(projectRoot) {
+    // 모든 호출이 이 클라이언트를 거치므로 여기서 한 번 치환한다. 도구마다 따로 부르면 빠뜨린 도구
+    // (log.js)만 자기 PC 서버에 공인 주소로 붙어 인증이 어긋난다. whoami 왕복은 base당 한 번만 한다.
+    const resolved = new Map();
+    function resolveBase(base) {
+        if (!resolved.has(base)) resolved.set(base, resolveLocalBase(base.replace(/\/$/, '')));
+        return resolved.get(base);
+    }
+
     async function send(method, base, path, payload) {
         const cookie = getEntry(base).cookie ?? '';
         const headers = {
@@ -302,10 +333,22 @@ export function createApiClient(projectRoot) {
         }
     }
 
-    async function request(method, base, path, payload) {
+    // 401 = 세션 미인증(라우터 공통). 단 CFileServer(File/Upload, File/Restart 등)와 RemoteCMD/Exec는
+    // 미인증을 403 "Unauthorized"로 돌려주므로 msg로 구분한다. 브루트포스 잠금 403은 auth/* 에서만 나오고,
+    // 같은 403이라도 "Invalid RootPath"/"Path escapes root"는 인증 문제가 아니라 재시도하지 않는다.
+    async function isAuthFailure(res) {
+        if (res.status === 401) return true;
+        if (res.status !== 403) return false;
+        try {
+            const j = await res.clone().json();
+            return j?.msg === 'Unauthorized' || j?.msg === 'Authentication required';
+        } catch { return false; }
+    }
+
+    async function request(method, rawBase, path, payload) {
+        const base = await resolveBase(rawBase);
         const first = await send(method, base, path, payload);
-        // 401 = 세션 미인증(라우터 공통). 403은 브루트포스 잠금이라 재시도해도 소용없다.
-        if (first.res.status !== 401 || path.startsWith('auth/')) return toJson(first.res);
+        if (path.startsWith('auth/') || !(await isAuthFailure(first.res))) return toJson(first.res);
         if (!(await reauth(base))) return toJson(first.res);
         const second = await send(method, base, path, payload);
         return toJson(second.res);
@@ -324,7 +367,8 @@ export function createApiClient(projectRoot) {
 
     // 도구의 명시적 login 명령. 이미 다른 봇이 인증해 둔 세션이 있으면 그대로 쓴다 - 봇 여러 개가
     // 동시에 기동해도 실제 로그인은 한 번, 2FA 승인 링크도 하나만 간다.
-    async function authLogin(base, password) {
+    async function authLogin(rawBase, password) {
+        const base = await resolveBase(rawBase);
         await acquireLock();
         try {
             if (await isAuthed(base)) return { ok: true, reused: true };
